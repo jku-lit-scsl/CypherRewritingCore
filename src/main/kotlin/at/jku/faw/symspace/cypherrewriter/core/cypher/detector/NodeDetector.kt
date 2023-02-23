@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component
 @Component
 class NodeDetector(permissionPolicy: PermissionPolicy) : SubDetector {
     private val rules = permissionPolicy.rules.filter { it.ressource.type == AstType.NODE }
-    private val labelRuleMap: MutableMap<String, MutableList<PermissionRule>> = mutableMapOf()
+    private val labelRuleMap: MutableMap<String, MutableList<PolicyRule>> = mutableMapOf()
 
     init {
         rules.forEach{rule ->

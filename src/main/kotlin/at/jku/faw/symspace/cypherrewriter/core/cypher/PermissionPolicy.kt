@@ -2,17 +2,17 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher
 
 
 interface PermissionPolicy {
-    val rules: List<PermissionRule>
+    val rules: List<PolicyRule>
 }
 
-class PermissionRule(
+class PolicyRule(
     val id: String,
     val description: String,
     val ressource: AstNode,
-    val subjectNode: AstNode = ressource,
     val levels: AuthorizationLevelHolder,
     val enforcementFilter: String,
-    val arguments: List<ArgumentType>
+    val arguments: List<ArgumentType>,
+    val subjectNodeExtractor: (AstNode) -> AstNode = {node -> node}
 )
 
 enum class AuthorizationLevel {

@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class PatternDetector(@Autowired permissionPolicy: PermissionPolicy) : SubDetector {
-    private final val relevantRules: List<PermissionRule> = permissionPolicy.rules.filter { it.ressource.type == AstType.PATTERN }
+    private final val relevantRules: List<PolicyRule> = permissionPolicy.rules.filter { it.ressource.type == AstType.PATTERN }
 
     private fun traverse(ctx: Context, ast: AstElement) {
         if (ast is AstNode) {
