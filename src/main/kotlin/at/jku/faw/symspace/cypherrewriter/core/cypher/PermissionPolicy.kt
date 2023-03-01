@@ -1,10 +1,47 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher
 
 
+class PermissionConfig(
+    val policies: List<Policy>,
+    val filters: List<Filter>
+)
+
+class Policy (
+    val pattern: String,
+    val rules: List<Rule>,
+    val comment: String? = null
+)
+
+class Rule (
+    val variable: String,
+    val conditions: List<Condition>,
+    val filterId: String,
+    val authorizationLevel: AuthorizationLevel,
+    val comment: String? = null
+)
+
+class Condition (
+    val variable: String,
+    val filterType: FilterType,
+    val returnType: ReturnType,
+    val comment: String? = null
+)
+
+class Filter (
+    val filterId: String,
+    val authorizationLevel: AuthorizationLevel,
+    val pattern: String,
+    val arguments: List<ArgumentType>,
+    val comment: String? = null
+)
+
+
+@Deprecated("Old policy model", ReplaceWith("PermissionConfig"))
 interface PermissionPolicy {
     val rules: List<PolicyRule>
 }
 
+@Deprecated("Old policy model", ReplaceWith("Policy"))
 class PolicyRule(
     val id: String,
     val description: String,
@@ -13,7 +50,9 @@ class PolicyRule(
     val enforcementFilter: String,
     val arguments: List<ArgumentType>,
     val subjectNodeExtractor: (AstNode) -> AstNode = {node -> node}
-)
+) {
+    val subjectNode: AstNode get() {return subjectNodeExtractor(ressource)}
+}
 
 enum class AuthorizationLevel {
     PUBLIC_LEVEL,
@@ -40,6 +79,7 @@ enum class FilterType {
     FILTERED
 }
 
+@Deprecated("Old policy model")
 class AuthorizationLevelHolder(private val default: AuthorizationLevel = AuthorizationLevel.OWNER_LEVEL) {
     private val bothSpecified = mutableMapOf<Pair<ReturnType, FilterType>, AuthorizationLevel>()
     private val returnSpecified = mutableMapOf<ReturnType, AuthorizationLevel>()

@@ -4,7 +4,7 @@ import at.jku.faw.symspace.cypherrewriter.core.cypher.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 
-@Component
+//@Component
 class PatternDetector(@Autowired permissionPolicy: PermissionPolicy) : SubDetector {
     private final val relevantRules: List<PolicyRule> = permissionPolicy.rules.filter { it.ressource.type == AstType.PATTERN }
 
