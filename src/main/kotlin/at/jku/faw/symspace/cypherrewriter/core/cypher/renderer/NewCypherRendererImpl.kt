@@ -69,7 +69,7 @@ class NewCypherRendererImpl : NewCypherRenderer {
 
         astNode.elements.find { it.type == AstType.OPTIONAL }?.let { sb.append(visit(it)).append(" ") }
         sb.append("MATCH ")
-        astNode.elements.filter { it.type != AstType.OPTIONAL }.joinTo(sb, separator = " ") { visit(it) }
+        astNode.elements.filter { it.type != AstType.OPTIONAL }.joinTo(sb, separator = ", ") { visit(it) }
         return sb.toString()
     }
 

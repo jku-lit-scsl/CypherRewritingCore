@@ -8,6 +8,7 @@ class PermissionConfig(
 
 class Policy (
     val pattern: String,
+    val patternMatchStrategy: Map<String, PatternMatchStrategy>,
     val rules: List<Rule>,
     val comment: String? = null
 )
@@ -35,6 +36,17 @@ class Filter (
     val comment: String? = null
 )
 
+class PatternMatchStrategy (
+    val labelStrategy: LabelMatchStrategy,
+    val matchEmptyLabels: Boolean
+)
+
+enum class LabelMatchStrategy {
+    EXACT,
+    CONTAINS_ALL,
+    CONTAINS_ANY
+}
+
 
 @Deprecated("Old policy model", ReplaceWith("PermissionConfig"))
 interface PermissionPolicy {
@@ -56,7 +68,8 @@ class PolicyRule(
 
 enum class AuthorizationLevel {
     PUBLIC_LEVEL,
-    OWNER_LEVEL
+    OWNER_LEVEL,
+    AUTHORIZED_LEVEL
 }
 
 object AggregationFunctions {
@@ -69,12 +82,14 @@ enum class ArgumentType {
 }
 
 enum class ReturnType {
+    ANY,
     NO_RETURN,
-    RETURNED_AS_VALUE,
-    AGGREGATED
+    AGGREGATED,
+    RETURNED_AS_VALUE
 }
 
 enum class FilterType {
+    ANY,
     NO_FILTER,
     FILTERED
 }
