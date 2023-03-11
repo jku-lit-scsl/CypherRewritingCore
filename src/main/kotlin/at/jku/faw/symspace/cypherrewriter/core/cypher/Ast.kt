@@ -7,11 +7,13 @@ sealed class AstElement(val type: AstType) {
     fun asNode(): AstNode {
         return this as AstNode
     }
+
     fun asValue(): AstValue {
         return this as AstValue
     }
 }
-class AstNode(type: AstType): AstElement(type) {
+
+class AstNode(type: AstType) : AstElement(type) {
     val elements: MutableList<AstElement> = mutableListOf()
 
     override fun copy(overrideType: AstType): AstNode {
@@ -20,12 +22,14 @@ class AstNode(type: AstType): AstElement(type) {
         }
     }
 }
-class AstValue(type: AstType, val value: Any): AstElement(type){
+
+class AstValue(type: AstType, val value: Any) : AstElement(type) {
     override fun copy(overrideType: AstType): AstValue {
         return AstValue(overrideType, value)
     }
 }
-class AstTerminal(type: AstType): AstElement(type) {
+
+class AstTerminal(type: AstType) : AstElement(type) {
     override fun copy(overrideType: AstType): AstTerminal {
         return AstTerminal(overrideType)
     }
@@ -81,3 +85,12 @@ enum class AstType(val value: String? = null) {
     COMPARISON,
 }
 
+object AstMetadata {
+    val SET_OF_VARIABLE_STORABLE_AST_TYPES = setOf(
+        AstType.NODE,
+        AstType.RELATION_BOTH,
+        AstType.RELATION_RIGHT,
+        AstType.RELATION_LEFT,
+        AstType.PATTERN
+    )
+}

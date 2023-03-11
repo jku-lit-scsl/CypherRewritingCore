@@ -3,7 +3,7 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher.detector
 import at.jku.faw.symspace.cypherrewriter.core.cypher.*
 import org.springframework.stereotype.Component
 
-@Component
+//@Component
 class PermissionDetectorImpl(val subDetectors: List<SubDetector>) : PermissionDetector {
     override fun process(node: AstNode): List<Detection> {
         val detections = subDetectors.flatMap { it.process(node) }

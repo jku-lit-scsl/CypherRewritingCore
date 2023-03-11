@@ -1,13 +1,14 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher.detector.matchutils
 
-class QueryContext(
-    val varStates: MutableMap<String, VariableState> = mutableMapOf(),
-): CommonContext() {
+import at.jku.faw.symspace.cypherrewriter.core.cypher.AstNode
+
+class QueryContext(): CommonContext() {
     override val evaluateQuerySpecifics = true
 
-    var isReturn: Boolean = false
+    var isReturnClause: Boolean = false
     var isFiltered: Boolean = false
-    var isAggregated: Boolean = false
-    var lastVar: String? = null
-    var isWhere: Boolean = false
+    var isAggregationFunction: Boolean = false
+    var lastVar: Variable? = null
+    var isWhereClause: Boolean = false
+    var matchClause: AstNode? = null
 }

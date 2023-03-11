@@ -4,12 +4,14 @@ import at.jku.faw.symspace.cypherrewriter.core.cypher.*
 import at.jku.faw.symspace.cypherrewriter.core.cypher.detector.matchutils.*
 import at.jku.faw.symspace.cypherrewriter.core.cypher.parser.NewCypherParser
 import org.springframework.stereotype.Component
-import java.lang.IllegalStateException
 import kotlin.IllegalArgumentException
+import kotlin.IllegalStateException
 
 @Component
-class PatternMatcher(private val cypherParser: NewCypherParser, private val permissionConfig: PermissionConfig) :
-    SubDetector {
+class PatternMatcher(
+    private val cypherParser: NewCypherParser,
+    @Suppress("SpringJavaInjectionPointsAutowiringInspection") private val permissionConfig: PermissionConfig
+) : PermissionDetector {
 
     private val policyContextCache: MutableMap<Policy, PolicyContext> = mutableMapOf()
 
@@ -30,34 +32,41 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
 
         println("vars and labels")
         println("\tpolicy")
-        ctx.policy.varToLabels.forEach { println("\t\t" + it) }
+        ctx.policy.variables.forEach { println("\t\t" + it.name + ": " + it.knownLabels) }
         println("\tquery")
-        ctx.query.varToLabels.forEach { println("\t\t" + it) }
+        ctx.query.variables.forEach { println("\t\t" + it.name + ": " + it.knownLabels) }
         println()
 
         findVarMappingCandidates(ctx)
         println("var mapping candidates: " + ctx.possibleVarMappings)
 
-        findMappings(ctx)
+        val mappings = findMappings(ctx)
         println("valid var mappings")
-        println(ctx.validVarMappings)
+        println(mappings)
 
         println("var states")
-        ctx.query.varStates.forEach{println(it)}
+        ctx.query.variables.forEach { println("${it.name} = ${it.state}") }
 
-        return ctx.validVarMappings.size == 1
+        return if (mappings.size == 1) {
+            ctx.validVarMappings.addAll(mappings.first())
+            true
+        } else {
+            false
+        }
     }
 
-    private fun findMappings(ctx: Context) {
+    private fun findMappings(ctx: Context): Set<Set<Mapping>> {
+        val resultMappings = mutableSetOf<Set<Mapping>>()
         val iter = VariableMappingIterator.of(ctx.possibleVarMappings)
+
         for (mappings in iter) {
             println(mappings)
             var mappingValid = true
             for (mapping in mappings) {
-                val policyLabels = ctx.policy.varToLabels[mapping.policyVar] ?: setOf()
-                val queryLabels = ctx.query.varToLabels[mapping.queryVar] ?: setOf()
+                val policyLabels = mapping.policyVar.knownLabels
+                val queryLabels = mapping.queryVar.knownLabels
 
-                val mapper = ctx.policy.labelMatchers[mapping.policyVar]
+                val mapper = ctx.policy.labelMatchers[mapping.policyVar.name]
                 val result = if (mapper != null) {
                     mapper(queryLabels, policyLabels)
                 } else {
@@ -67,11 +76,13 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
                 mappingValid = mappingValid && result
             }
             if (mappingValid) {
-                ctx.validVarMappings.add(mappings)
+                resultMappings.add(mappings)
             }
             println("Mapping is valid: $mappingValid")
             println()
         }
+
+        return resultMappings
     }
 
     private fun findVarMappingCandidates(ctx: Context) {
@@ -79,9 +90,15 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
             ctx.possibleVarMappings.getOrPut(it.policyPath.from.variable) { mutableSetOf() }
                 .add(it.queryPath.from.variable)
 
-            if (it.policyPath.to != null && it.queryPath.to != null)
+            if (it.policyPath.relationship != null && it.queryPath.relationship != null) {
+                ctx.possibleVarMappings.getOrPut(it.policyPath.relationship.variable) { mutableSetOf() }
+                    .add(it.queryPath.relationship.variable)
+            }
+
+            if (it.policyPath.to != null && it.queryPath.to != null) {
                 ctx.possibleVarMappings.getOrPut(it.policyPath.to.variable) { mutableSetOf() }
                     .add(it.queryPath.to.variable)
+            }
         }
     }
 
@@ -96,9 +113,7 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
     }
 
     private fun isStructuralMatch(
-        nodeLabelsMatcher: Map<String, (Set<String>, Set<String>) -> Boolean>,
-        queryPath: Path,
-        policyPath: Path
+        nodeLabelsMatcher: Map<String, (Set<String>, Set<String>) -> Boolean>, queryPath: Path, policyPath: Path
     ): Boolean {
         val fromLabelsMatch = nodeLabelsMatch(nodeLabelsMatcher, queryPath.from, policyPath.from)
         val toLabelsMatch = nodeLabelsMatch(nodeLabelsMatcher, queryPath.to, policyPath.to)
@@ -108,9 +123,7 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
     }
 
     private fun nodeLabelsMatch(
-        nodeLabelsMatcher: Map<String, (Set<String>, Set<String>) -> Boolean>,
-        queryNode: Node?,
-        policyNode: Node?
+        nodeLabelsMatcher: Map<String, (Set<String>, Set<String>) -> Boolean>, queryNode: Node?, policyNode: Node?
     ): Boolean {
         if (queryNode == null && policyNode == null) {
             return true
@@ -119,7 +132,7 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
             return false
         }
 
-        val matcher = nodeLabelsMatcher[policyNode.variable]
+        val matcher = nodeLabelsMatcher[policyNode.variable.name]
         if (matcher != null) {
             return matcher(queryNode.labels, policyNode.labels)
         }
@@ -140,64 +153,19 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
         ).isNotEmpty()
     }
 
-    private fun evalPattern(pattern: AstNode): Set<Path> {
-        return if (isOnlyOneNode(pattern)) {
-            evalSingleNodePattern(pattern)
-        } else {
-            evalGeneralPattern(pattern)
-        }
-    }
-
-    private fun evalGeneralPattern(pattern: AstNode): Set<Path> {
-        val paths = mutableSetOf<Path>()
-
-        for (i in 0 until pattern.elements.size step 2) {
-            if (i + 2 < pattern.elements.size) {
-                val nodeA = getNode(pattern.elements[i])
-                val astRelation = pattern.elements[i + 1]
-                val relation = getRelation(astRelation)
-                val nodeB = getNode(pattern.elements[i + 2])
-
-                when (astRelation.type) {
-                    AstType.RELATION_BOTH -> {
-                        paths.add(Path(nodeA, relation, nodeB))
-                        paths.add(Path(nodeB, relation, nodeA))
-                    }
-
-                    AstType.RELATION_RIGHT -> {
-                        paths.add(Path(nodeA, relation, nodeB))
-                    }
-
-                    AstType.RELATION_LEFT -> {
-                        paths.add(Path(nodeB, relation, nodeA))
-                    }
-
-                    else -> {
-                        throw IllegalArgumentException("Invalid relation encountered")
-                    }
-                }
-
-            }
-        }
-
-        return paths
-    }
-
-    private fun evalSingleNodePattern(pattern: AstNode): Set<Path> {
+    @Deprecated("rebuild")
+    private fun evalSingleNodePattern(ctx: CommonContext, pattern: AstNode): Set<Path> {
         val cypherNode = pattern.elements.find { it.type == AstType.NODE }
         if (cypherNode != null) {
-            val path = Path(getNode(cypherNode), null, null)
+            val path = Path(getNode(ctx, cypherNode), null, null)
             return setOf(path)
         }
         throw IllegalStateException("This method was called on a pattern it was not designed for. Probably an issue with isOnlyOneNode().")
     }
 
-    private fun isOnlyOneNode(pattern: AstNode): Boolean {
-        return pattern.elements.count { it.type == AstType.NODE } == 1
-    }
-
-    private fun getVariable(ast: AstElement): String {
-        return ast.asNode().elements.find { it.type == AstType.VARIABLE }?.asValue()?.value?.toString() ?: "*"
+    private fun getVariable(ctx: CommonContext, ast: AstNode): Variable {
+        val name = ast.elements.find { it.type == AstType.VARIABLE }?.asValue()?.value?.toString() ?: "*"
+        return createNewVariable(ctx, name)
     }
 
     private fun getLabels(ast: AstElement): Set<String> {
@@ -205,33 +173,78 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
             .map { it.asValue().value.toString() }.toSet().ifEmpty { setOf("*") }
     }
 
-    private fun getNode(ast: AstElement): Node {
-        val variable = getVariable(ast)
+    private fun getNode(ctx: CommonContext, ast: AstElement): Node {
+        val parentNodeBackup = ctx.parentNode
+        ctx.parentNode = ast.asNode()
+        val variable = getVariable(ctx, ast.asNode())
+        ctx.parentNode = parentNodeBackup
+
         val labels = getLabels(ast)
+        variable.knownLabels.addAll(labels)
         return Node(variable, labels)
     }
 
-    private fun getRelation(ast: AstElement): Relation {
-        val variable = getVariable(ast)
+    private fun getRelation(ctx: CommonContext, ast: AstElement): Relation {
+        val parentNodeBackup = ctx.parentNode
+        ctx.parentNode = ast.asNode()
+        val variable = getVariable(ctx, ast.asNode())
+        ctx.parentNode = parentNodeBackup
+
         val labels = getLabels(ast)
-        return Relation(variable, labels)
+        variable.knownLabels.addAll(labels)
+        return Relation(variable, ast.type, labels)
     }
 
-    @Deprecated("only debugging code")
-    override fun process(ast: AstElement): List<Detection> {
+    override fun process(node: AstNode): List<Detection> {
         val detections = mutableListOf<Detection>()
 
         val queryContext = QueryContext()
-        traverse(queryContext, ast)
+        traverse(queryContext, node)
 
         for (policy in permissionConfig.policies) {
             val policyContext = policyContextCache.getOrPut(policy) { generatePolicyContext(policy) }
             val ctx = Context(policy = policyContext, query = queryContext)
             val matches = matches(ctx)
             println("policy matches: $matches")
+            if (matches) {
+                for (rule in policy.rules) {
+                    if (ruleMatches(rule, ctx)) {
+                        val detection = Detection(rule)
+                        detection.enforcementNode = ctx.query.matchClause
+                        detection.protectedNode =
+                            translatePolicyVarToQueryVar(rule.variable, ctx.validVarMappings).definingElement
+                        detections.add(detection)
+                    }
+                }
+            }
         }
 
-        return listOf()
+        return detections
+    }
+
+    private fun ruleMatches(rule: Rule, ctx: Context): Boolean {
+        return rule.conditions.all {
+            val queryVar = translatePolicyVarToQueryVar(it.variable, ctx.validVarMappings)
+            statesMatch(queryVar.state, it.filterType, it.returnType)
+        }
+    }
+
+    private fun statesMatch(
+        queryVarState: VariableState,
+        policyFilterType: FilterType,
+        policyReturnType: ReturnType
+    ): Boolean {
+        val filterTypeResult =
+            policyFilterType == FilterType.ANY || queryVarState.filterType == FilterType.ANY || queryVarState.filterType == policyFilterType
+        val returnTypeResult =
+            policyReturnType == ReturnType.ANY || queryVarState.returnType == ReturnType.ANY || queryVarState.returnType == policyReturnType
+
+        return filterTypeResult && returnTypeResult
+    }
+
+    private fun translatePolicyVarToQueryVar(policyVarName: String, mappings: Set<Mapping>): Variable {
+        return mappings.find { it.policyVar.name == policyVarName }?.queryVar
+            ?: throw IllegalStateException("Tried to translate unmapped policy variable.")
     }
 
     private fun generatePolicyContext(policy: Policy): PolicyContext {
@@ -242,25 +255,19 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
             when (it.value.labelStrategy) {
                 LabelMatchStrategy.CONTAINS_ANY -> it.key to { policyLabels: Set<String>, queryLabels: Set<String> ->
                     matchLabelsQueryContainsAnyPolicy(
-                        policyLabels,
-                        queryLabels,
-                        it.value.matchEmptyLabels
+                        policyLabels, queryLabels, it.value.matchEmptyLabels
                     )
                 }
 
                 LabelMatchStrategy.CONTAINS_ALL -> it.key to { policyLabels: Set<String>, queryLabels: Set<String> ->
                     matchLabelsQueryContainsAllPolicy(
-                        policyLabels,
-                        queryLabels,
-                        it.value.matchEmptyLabels
+                        policyLabels, queryLabels, it.value.matchEmptyLabels
                     )
                 }
 
                 LabelMatchStrategy.EXACT -> it.key to { policyLabels: Set<String>, queryLabels: Set<String> ->
                     matchLabelsExactly(
-                        policyLabels,
-                        queryLabels,
-                        it.value.matchEmptyLabels
+                        policyLabels, queryLabels, it.value.matchEmptyLabels
                     )
                 }
             }
@@ -286,43 +293,54 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
             AstType.PROPERTY_DOT_ACCESS -> processPropertyDotAccess(ctx, ast.asNode())
             AstType.ASTERISK -> processAsterisk(ctx)
             AstType.FUNCTION_NAME -> processFunctionName(ctx, ast.asValue())
+            AstType.MATCH -> processMatch(ctx, ast.asNode())
             else -> traverseChildren(ctx, ast)
         }
     }
 
+    private fun processMatch(ctx: CommonContext, ast: AstNode) {
+        if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
+            ctx.matchClause = ast
+        }
+        traverseChildren(ctx, ast)
+    }
+
     private fun processFunctionName(ctx: CommonContext, ast: AstValue) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            ctx.isAggregated = ast.value.toString() in AggregationFunctions.names
+            ctx.isAggregationFunction = ast.value.toString() in AggregationFunctions.names
         }
     }
 
     private fun processAsterisk(ctx: CommonContext) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            ctx.varStates.forEach { mergeReturnType(it.value, ReturnType.RETURNED_AS_VALUE) }
+            ctx.variables.forEach { mergeReturnType(it.state, ReturnType.RETURNED_AS_VALUE) }
         }
     }
 
     private fun traverseChildren(ctx: CommonContext, ast: AstElement) {
         if (ast is AstNode) {
-            ast.elements.forEach { traverse(ctx, it) }
+            ast.elements.forEach {
+                ctx.parentNode = ast
+                traverse(ctx, it)
+            }
         }
     }
 
     private fun processReturn(ctx: CommonContext, ast: AstNode) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            ctx.isReturn = true
+            ctx.isReturnClause = true
             traverseChildren(ctx, ast)
-            ctx.isReturn = false
+            ctx.isReturnClause = false
         } else {
             traverseChildren(ctx, ast)
         }
     }
 
     private fun processPattern(ctx: CommonContext, ast: AstNode) {
-        val paths = evalPattern(ast)
-        ctx.paths.addAll(paths)
-
+        ctx.patternContext = PatternContext()
         traverseChildren(ctx, ast)
+        ctx.patternContext?.let { ctx.paths.addAll(it.getPaths()) }
+        ctx.patternContext = null
     }
 
     private fun getFilterType(ctx: QueryContext): FilterType {
@@ -334,7 +352,7 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
     }
 
     private fun getReturnType(ctx: QueryContext): ReturnType {
-        return if (ctx.isAggregated) {
+        return if (ctx.isAggregationFunction) {
             ReturnType.AGGREGATED
         } else {
             ReturnType.RETURNED_AS_VALUE
@@ -369,9 +387,9 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
     }
 
     private fun processNode(ctx: CommonContext, ast: AstNode) {
-        val node = getNode(ast)
+        val node = getNode(ctx, ast)
         ctx.nodes.add(node)
-        addLabelsToVarMap(ctx, node.variable, node.labels)
+        ctx.patternContext?.add(node)
 
         traverseChildren(ctx, ast)
 
@@ -379,9 +397,9 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
     }
 
     private fun processRelation(ctx: CommonContext, ast: AstNode) {
-        val relation = getRelation(ast)
-        addLabelsToVarMap(ctx, relation.variable, relation.labels)
-
+        val relation = getRelation(ctx, ast)
+        ctx.relations.add(relation)
+        ctx.patternContext?.add(relation)
 
         traverseChildren(ctx, ast)
 
@@ -390,28 +408,20 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
 
     private fun processWhere(ctx: CommonContext, ast: AstNode) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            ctx.isWhere = true
+            ctx.isWhereClause = true
         }
         traverseChildren(ctx, ast)
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            ctx.isWhere = false
+            ctx.isWhereClause = false
         }
     }
 
-
-
-    private fun addLabelsToVarMap(ctx: CommonContext, variable: String, labels: Collection<String>) {
-        if (variable != "*") {
-            ctx.varToLabels.getOrPut(variable) { mutableSetOf() }
-                .addAll(labels.filter { it != "*" })
-        }
-    }
 
     private fun updateFilterStatusOfLastVar(ctx: CommonContext) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             val lastVar = ctx.lastVar
             if (lastVar != null) {
-                val varState = ctx.varStates.getOrPut(lastVar) { VariableState() }
+                val varState = lastVar.state
                 mergeFilterType(varState, getFilterType(ctx))
             }
             ctx.lastVar = null
@@ -423,29 +433,45 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             val lastVar = ctx.lastVar
             if (lastVar != null) {
-                val varState = ctx.varStates.getOrPut(lastVar) { VariableState() }
+                val varState = lastVar.state
                 mergeReturnType(varState, getReturnType(ctx))
             }
             ctx.lastVar = null
-            ctx.isAggregated = false
+            ctx.isAggregationFunction = false
         }
     }
 
     private fun processVariable(ctx: CommonContext, ast: AstValue) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            val variable = ast.value.toString()
+            val variableName = ast.value.toString()
+            val variable = ctx.variables.find { it.name == variableName }
+                ?: throw IllegalArgumentException("The AST appears to be malformed: A variable was not already created by the parent-node processing.")
             ctx.lastVar = variable
-            ctx.varStates.computeIfAbsent(variable) { VariableState() }
         }
+    }
+
+    private fun createNewVariable(ctx: CommonContext, variableName: String): Variable {
+        val parentNode = ctx.parentNode
+        val variable = if (parentNode != null && parentNode.type in AstMetadata.SET_OF_VARIABLE_STORABLE_AST_TYPES) {
+            Variable(variableName, parentNode)
+        } else {
+            throw IllegalArgumentException("The AST appears to be malformed: Try to define a variable in an AstNode not suited.")
+        }
+        ctx.variables.add(variable)
+
+        if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
+            ctx.lastVar = variable
+        }
+        return variable
     }
 
     private fun processPropertyDotAccess(ctx: CommonContext, ast: AstNode) {
         traverseChildren(ctx, ast)
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            if (ctx.isWhere) {
+            if (ctx.isWhereClause) {
                 ctx.isFiltered = true
                 updateFilterStatusOfLastVar(ctx)
-            } else if (ctx.isReturn) {
+            } else if (ctx.isReturnClause) {
                 updateReturnStatusOfLastVar(ctx)
             }
 
@@ -458,35 +484,26 @@ class PatternMatcher(private val cypherParser: NewCypherParser, private val perm
     }
 
     private fun matchLabelsExactly(
-        queryLabels: Set<String>,
-        policyLabels: Set<String>,
-        matchEmptyQueryLabels: Boolean = false
+        queryLabels: Set<String>, policyLabels: Set<String>, matchEmptyQueryLabels: Boolean = false
     ): Boolean {
         return anyAsteriskLabels(
-            queryLabels,
-            policyLabels
+            queryLabels, policyLabels
         ) || queryLabels == policyLabels || matchEmptyQueryLabels && queryLabels.isEmpty()
     }
 
     private fun matchLabelsQueryContainsAllPolicy(
-        queryLabels: Set<String>,
-        policyLabels: Set<String>,
-        matchEmptyQueryLabels: Boolean = false
+        queryLabels: Set<String>, policyLabels: Set<String>, matchEmptyQueryLabels: Boolean = false
     ): Boolean {
         return anyAsteriskLabels(
-            queryLabels,
-            policyLabels
+            queryLabels, policyLabels
         ) || queryLabels.containsAll(policyLabels) || matchEmptyQueryLabels && queryLabels.isEmpty()
     }
 
     private fun matchLabelsQueryContainsAnyPolicy(
-        queryLabels: Set<String>,
-        policyLabels: Set<String>,
-        matchEmptyQueryLabels: Boolean = false
+        queryLabels: Set<String>, policyLabels: Set<String>, matchEmptyQueryLabels: Boolean = false
     ): Boolean {
         return anyAsteriskLabels(
-            queryLabels,
-            policyLabels
+            queryLabels, policyLabels
         ) || policyLabels.any { queryLabels.contains(it) } || matchEmptyQueryLabels && queryLabels.isEmpty()
     }
 

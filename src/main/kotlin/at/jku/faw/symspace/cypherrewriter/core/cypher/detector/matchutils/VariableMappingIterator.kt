@@ -2,7 +2,7 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher.detector.matchutils
 
 import java.lang.IllegalStateException
 
-class VariableMappingIterator(val items: List<MappingItem>) : Iterator<Set<Mapping>> {
+class VariableMappingIterator(private val items: List<MappingItem>) : Iterator<Set<Mapping>> {
 
     var next = nextValue()
     private var increaseNext = false
@@ -65,7 +65,7 @@ class VariableMappingIterator(val items: List<MappingItem>) : Iterator<Set<Mappi
     }
 
     companion object {
-        fun of(possibleMappings: Map<String, Set<String>>): VariableMappingIterator {
+        fun of(possibleMappings: Map<Variable, Set<Variable>>): VariableMappingIterator {
             val items = mutableListOf<MappingItem>()
             for ((key, values) in possibleMappings) {
                 items.add(MappingItem(key, values))

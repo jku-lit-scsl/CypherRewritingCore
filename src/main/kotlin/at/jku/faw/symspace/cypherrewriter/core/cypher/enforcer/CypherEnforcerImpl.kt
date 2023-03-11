@@ -6,27 +6,22 @@ import org.springframework.stereotype.Component
 import kotlin.random.Random
 
 @Component
-class CypherEnforcerImpl(private val appContext: CypherAppContext) : CypherEnforcer {
+class CypherEnforcerImpl(private val appContext: CypherAppContext, private val permissionConfig: PermissionConfig) :
+    CypherEnforcer {
     override fun enforce(detections: Collection<Detection>) {
         detections.forEach { enforce(it) }
     }
 
     private fun enforce(detection: Detection) {
-        val authLevel = detection.rule.levels.get(detection.returnType, detection.filterType)
+        val authLevel = detection.rule.authorizationLevel
         if (authLevel == AuthorizationLevel.PUBLIC_LEVEL) {
             return
         }
 
-        val protectedVar = detection.protectedNode?.let { getVariable(it) } ?: return
+        val protectedVar = detection.protectedNode?.let { getVariable(it) }?.value.toString() ?: return
         val whereNode = detection.enforcementNode?.let { getWhere(it) } ?: return
-        val filterString =
-            detection.rule.enforcementFilter.let {
-                getFilterString(
-                    it,
-                    detection.rule.arguments,
-                    protectedVar.value.toString()
-                )
-            }
+        val filter = getFilter(detection.rule)
+        val filterString = getFilterString(filter, protectedVar)
 
 
         val filterAst = AstValue(AstType.STRING, filterString)
@@ -41,18 +36,19 @@ class CypherEnforcerImpl(private val appContext: CypherAppContext) : CypherEnfor
         }
     }
 
-    private fun getFilterString(
-        enforcementFilter: String,
-        filterArguments: List<ArgumentType>,
-        variable: String
-    ): String {
-        val args = filterArguments.map {
+    private fun getFilter(rule: Rule): Filter {
+        return permissionConfig.filters.find { it.filterId == rule.filterId && it.authorizationLevel == rule.authorizationLevel }
+            ?: throw IllegalStateException("The filter ${rule.filterId} with authorization level ${rule.authorizationLevel} was not defined.")
+    }
+
+    private fun getFilterString(filter: Filter, resourceVariableName: String): String {
+        val args = filter.arguments.map {
             when (it) {
                 ArgumentType.USERNAME -> appContext.currentUsername
-                ArgumentType.RESOURCE_VARIABLE -> variable
+                ArgumentType.RESOURCE_VARIABLE -> resourceVariableName
             }
         }
-        return enforcementFilter.format(*args.toTypedArray())
+        return filter.pattern.format(*args.toTypedArray())
     }
 
 

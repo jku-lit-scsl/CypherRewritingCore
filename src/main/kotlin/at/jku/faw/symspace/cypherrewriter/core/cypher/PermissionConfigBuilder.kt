@@ -14,7 +14,7 @@ class PermissionConfigBuilder {
     fun build(): PermissionConfig {
         val policies = policyBuilders.map { it.build() }
 
-        return PermissionConfig(policies, listOf())
+        return PermissionConfig(policies, filters)
     }
 
     fun filter(
@@ -50,12 +50,13 @@ class PolicyBuilder(private val parent: PermissionConfigBuilder, private val com
     }
 
     fun rule(
+        id: String,
         variable: String,
         filterId: String,
         authorizationLevel: AuthorizationLevel,
         comment: String? = null
     ): RuleBuilder {
-        return RuleBuilder(this, variable, filterId, authorizationLevel, comment).also { ruleBuilders.add(it) }
+        return RuleBuilder(this, id, variable, filterId, authorizationLevel, comment).also { ruleBuilders.add(it) }
     }
 
     fun endPattern(): PermissionConfigBuilder {
@@ -71,6 +72,7 @@ class PolicyBuilder(private val parent: PermissionConfigBuilder, private val com
 
 class RuleBuilder(
     private val parent: PolicyBuilder,
+    private val id: String,
     private val variable: String,
     private val filterId: String,
     private val authorizationLevel: AuthorizationLevel,
@@ -93,7 +95,7 @@ class RuleBuilder(
     }
 
     fun build(): Rule {
-        return Rule(variable, conditions, filterId, authorizationLevel, comment)
+        return Rule(id, variable, conditions, filterId, authorizationLevel, comment)
     }
 
 }

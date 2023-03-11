@@ -14,6 +14,7 @@ class Policy (
 )
 
 class Rule (
+    val id: String,
     val variable: String,
     val conditions: List<Condition>,
     val filterId: String,

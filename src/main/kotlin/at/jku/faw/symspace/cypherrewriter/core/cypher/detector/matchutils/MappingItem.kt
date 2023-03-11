@@ -1,6 +1,6 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher.detector.matchutils
 
-class MappingItem(val policyVar: String, val dests: Iterable<String>) {
+class MappingItem(private val policyVar: Variable, private val dests: Iterable<Variable>) {
     private var iterator = dests.iterator()
     private var queryVar = iterator.next()
 
