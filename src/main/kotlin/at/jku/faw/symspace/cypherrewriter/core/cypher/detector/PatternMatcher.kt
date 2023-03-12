@@ -230,14 +230,17 @@ class PatternMatcher(
     }
 
     private fun statesMatch(
-        queryVarState: VariableState,
-        policyFilterType: FilterType,
-        policyReturnType: ReturnType
+        queryVarState: VariableState, policyFilterType: FilterType, policyReturnType: ReturnType
     ): Boolean {
         val filterTypeResult =
-            policyFilterType == FilterType.ANY || queryVarState.filterType == FilterType.ANY || queryVarState.filterType == policyFilterType
+            policyFilterType == FilterType.ANY
+                    || queryVarState.filterType == FilterType.ANY
+                    || queryVarState.filterType == policyFilterType
         val returnTypeResult =
-            policyReturnType == ReturnType.ANY || queryVarState.returnType == ReturnType.ANY || queryVarState.returnType == policyReturnType
+            policyReturnType == ReturnType.ANY
+                    || queryVarState.returnType == ReturnType.ANY
+                    || queryVarState.returnType == policyReturnType
+                    || policyReturnType == ReturnType.ANY_RETURN && queryVarState.returnType in ReturnTypeMetadata.anyReturnTypes
 
         return filterTypeResult && returnTypeResult
     }
@@ -307,7 +310,7 @@ class PatternMatcher(
 
     private fun processFunctionName(ctx: CommonContext, ast: AstValue) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
-            ctx.isAggregationFunction = ast.value.toString() in AggregationFunctions.names
+            ctx.isAggregationFunction = ast.value.toString() in ReturnTypeMetadata.aggregationFunctions
         }
     }
 

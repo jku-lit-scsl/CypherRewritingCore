@@ -73,8 +73,9 @@ enum class AuthorizationLevel {
     AUTHORIZED_LEVEL
 }
 
-object AggregationFunctions {
-    val names = listOf("sum", "avg")
+object ReturnTypeMetadata {
+    val aggregationFunctions = listOf("sum", "avg")
+    val anyReturnTypes = setOf(ReturnType.RETURNED_AS_VALUE, ReturnType.AGGREGATED)
 }
 
 enum class ArgumentType {
@@ -85,6 +86,7 @@ enum class ArgumentType {
 enum class ReturnType {
     ANY,
     NO_RETURN,
+    ANY_RETURN,
     AGGREGATED,
     RETURNED_AS_VALUE
 }

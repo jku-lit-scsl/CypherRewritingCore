@@ -1,7 +1,6 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher.detector
 
 import at.jku.faw.symspace.cypherrewriter.core.cypher.*
-import org.springframework.stereotype.Component
 
 //@Component
 class PermissionDetectorImpl(val subDetectors: List<SubDetector>) : PermissionDetector {
@@ -93,7 +92,7 @@ class PermissionDetectorImpl(val subDetectors: List<SubDetector>) : PermissionDe
         ctx.currentFunctionContext = null
         for(variable in funCtx.variables) {
             val list = ctx.returnedVariables.computeIfAbsent(variable) { mutableSetOf() }
-            if(funCtx.name in AggregationFunctions.names) {
+            if(funCtx.name in ReturnTypeMetadata.aggregationFunctions) {
                 list.add(ReturnType.AGGREGATED)
             } else {
                 list.add(ReturnType.RETURNED_AS_VALUE)
