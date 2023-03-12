@@ -22,12 +22,23 @@ class Rule (
     val comment: String? = null
 )
 
-class Condition (
+abstract class Condition
+
+class ConditionExpression (
     val variable: String,
     val filterType: FilterType,
     val returnType: ReturnType,
     val comment: String? = null
-)
+): Condition()
+
+class ConditionCombination(
+    val operation: ConditionBoolean,
+    vararg val conditions: Condition
+): Condition()
+
+enum class ConditionBoolean {
+    AND, OR, NOT
+}
 
 class Filter (
     val filterId: String,
@@ -46,25 +57,6 @@ enum class LabelMatchStrategy {
     EXACT,
     CONTAINS_ALL,
     CONTAINS_ANY
-}
-
-
-@Deprecated("Old policy model", ReplaceWith("PermissionConfig"))
-interface PermissionPolicy {
-    val rules: List<PolicyRule>
-}
-
-@Deprecated("Old policy model", ReplaceWith("Policy"))
-class PolicyRule(
-    val id: String,
-    val description: String,
-    val ressource: AstNode,
-    val levels: AuthorizationLevelHolder,
-    val enforcementFilter: String,
-    val arguments: List<ArgumentType>,
-    val subjectNodeExtractor: (AstNode) -> AstNode = {node -> node}
-) {
-    val subjectNode: AstNode get() {return subjectNodeExtractor(ressource)}
 }
 
 enum class AuthorizationLevel {
@@ -97,32 +89,3 @@ enum class FilterType {
     FILTERED
 }
 
-@Deprecated("Old policy model")
-class AuthorizationLevelHolder(private val default: AuthorizationLevel = AuthorizationLevel.OWNER_LEVEL) {
-    private val bothSpecified = mutableMapOf<Pair<ReturnType, FilterType>, AuthorizationLevel>()
-    private val returnSpecified = mutableMapOf<ReturnType, AuthorizationLevel>()
-    private val filterSpecified = mutableMapOf<FilterType, AuthorizationLevel>()
-
-    fun set(returnType: ReturnType, filterType: FilterType, authorizationLevel: AuthorizationLevel): AuthorizationLevelHolder {
-        val pair = returnType to filterType
-        bothSpecified[pair] = authorizationLevel
-        return this
-    }
-
-    fun set(returnType: ReturnType, authorizationLevel: AuthorizationLevel): AuthorizationLevelHolder {
-        returnSpecified[returnType] = authorizationLevel
-        return this
-    }
-
-    fun set(filterType: FilterType, authorizationLevel: AuthorizationLevel): AuthorizationLevelHolder {
-        filterSpecified[filterType] = authorizationLevel
-        return this
-    }
-
-    fun get(returnType: ReturnType?, filterType: FilterType?): AuthorizationLevel {
-        bothSpecified[returnType to filterType]?.let { return it }
-        returnSpecified[returnType]?.let { return it }
-        filterSpecified[filterType]?.let { return it }
-        return default
-    }
-}

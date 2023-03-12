@@ -2,8 +2,8 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher
 
 class PermissionConfigBuilder {
 
-    val policyBuilders: MutableList<PolicyBuilder> = mutableListOf()
-    val filters: MutableList<Filter> = mutableListOf()
+    private val policyBuilders: MutableList<PolicyBuilder> = mutableListOf()
+    private val filters: MutableList<Filter> = mutableListOf()
 
     fun policy(comment: String? = null): PolicyBuilder {
         val policyBuilder = PolicyBuilder(this, comment)
@@ -27,6 +27,22 @@ class PermissionConfigBuilder {
         val filter = Filter(filterId, authorizationLevel, pattern, argumentTypes.toList(), comment)
         filters.add(filter)
         return this
+    }
+
+    fun condition(variable: String, filterType: FilterType, returnType: ReturnType, comment: String?): Condition {
+        return ConditionExpression(variable, filterType, returnType, comment)
+    }
+
+    fun and(vararg conditions: Condition): Condition {
+        return ConditionCombination(ConditionBoolean.AND, *conditions)
+    }
+
+    fun or(vararg conditions: Condition): Condition {
+        return ConditionCombination(ConditionBoolean.OR, *conditions)
+    }
+
+    fun not(vararg conditions: Condition): Condition {
+        return ConditionCombination(ConditionBoolean.NOT, *conditions)
     }
 
 }
@@ -79,23 +95,13 @@ class RuleBuilder(
     private val comment: String?
 ) {
     private val conditions: MutableList<Condition> = mutableListOf()
-    fun condition(
-        variable: String,
-        filterType: FilterType,
-        returnType: ReturnType,
-        comment: String? = null
-    ): RuleBuilder {
-        val condition = Condition(variable, filterType, returnType, comment)
-        conditions.add(condition)
-        return this
-    }
-
-    fun endRule(): PolicyBuilder {
-        return parent
-    }
-
     fun build(): Rule {
         return Rule(id, variable, conditions, filterId, authorizationLevel, comment)
+    }
+
+    fun on(vararg condition: Condition): PolicyBuilder {
+        conditions.addAll(condition)
+        return parent
     }
 
 }
