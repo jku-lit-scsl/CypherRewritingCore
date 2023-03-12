@@ -18,7 +18,7 @@ class CypherEnforcerImpl(private val appContext: CypherAppContext, private val p
             return
         }
 
-        val protectedVar = detection.protectedNode?.let { getVariable(it) }?.value.toString() ?: return
+        val protectedVar = detection.protectedNode?.let { getVariable(it) }?.value.toString()
         val whereNode = detection.enforcementNode?.let { getWhere(it) } ?: return
         val filter = getFilter(detection.rule)
         val filterString = getFilterString(filter, protectedVar)
