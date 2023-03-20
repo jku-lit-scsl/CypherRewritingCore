@@ -7,64 +7,64 @@ import kotlin.text.StringBuilder
 
 @Component
 class NewCypherRendererImpl : NewCypherRenderer {
-    override fun render(astElement: AstElement): String {
+    override fun render(astNode: AstNode): String {
 
-        return visit(astElement)
+        return visit(astNode)
     }
 
-    private fun visit(element: AstElement): String {
+    private fun visit(element: AstNode): String {
         return when (element.type) {
-            AstType.RETURN -> renderReturn(element as AstNode)
-            AstType.WHERE -> renderPrefix(element as AstNode)
-            AstType.PATTERN -> renderPattern(element as AstNode)
-            AstType.OPTIONAL -> renderTerminal(element as AstTerminal)
-            AstType.MATCH -> renderMatch(element as AstNode)
-            AstType.DISTINCT -> renderTerminal(element as AstTerminal)
+            AstType.RETURN -> renderReturn(element as AstInternalNode)
+            AstType.WHERE -> renderPrefix(element as AstInternalNode)
+            AstType.PATTERN -> renderPattern(element as AstInternalNode)
+            AstType.OPTIONAL -> renderTerminal(element as AstLeafNoValue)
+            AstType.MATCH -> renderMatch(element as AstInternalNode)
+            AstType.DISTINCT -> renderTerminal(element as AstLeafNoValue)
             AstType.TEMPORARY -> error("${AstType.TEMPORARY} should not be present after parsing.")
-            AstType.ORDER_BY -> renderPrefix(element as AstNode)
-            AstType.SKIP -> renderPrefix(element as AstNode)
-            AstType.LIMIT -> renderPrefix(element as AstNode)
-            AstType.ASTERISK -> renderTerminal(element as AstTerminal)
-            AstType.AS -> renderBinaryOperator(element as AstNode)
-            AstType.VARIABLE -> renderValue(element as AstValue)
-            AstType.OR -> renderBinaryOperator(element as AstNode)
-            AstType.XOR -> renderBinaryOperator(element as AstNode)
-            AstType.AND -> renderBinaryOperator(element as AstNode)
+            AstType.ORDER_BY -> renderPrefix(element as AstInternalNode)
+            AstType.SKIP -> renderPrefix(element as AstInternalNode)
+            AstType.LIMIT -> renderPrefix(element as AstInternalNode)
+            AstType.ASTERISK -> renderTerminal(element as AstLeafNoValue)
+            AstType.AS -> renderBinaryOperator(element as AstInternalNode)
+            AstType.VARIABLE -> renderValue(element as AstLeafValue)
+            AstType.OR -> renderBinaryOperator(element as AstInternalNode)
+            AstType.XOR -> renderBinaryOperator(element as AstInternalNode)
+            AstType.AND -> renderBinaryOperator(element as AstInternalNode)
             AstType.NOT -> renderPrefix(element.asNode(), prefix = element.type.value!!)
             AstType.EXPRESSION -> TODO()
-            AstType.SORT_ITEM -> renderConcatenation(element as AstNode, delimiter = " ")
-            AstType.ASC -> renderTerminal(element as AstTerminal)
-            AstType.DESC -> renderTerminal(element as AstTerminal)
-            AstType.QUERY -> renderConcatenation(element as AstNode, delimiter = " ")
-            AstType.NODE_LABEL -> renderValue(element as AstValue)
-            AstType.PARAMETER -> renderValue(element as AstValue, "$")
-            AstType.PROPERTY_KEY_NAME -> renderValue(element as AstValue)
-            AstType.PROPERTIES -> renderConcatenation(element as AstNode, ", ","{", "}")
-            AstType.PROPERTY -> renderConcatenation(element as AstNode, ": ")
+            AstType.SORT_ITEM -> renderConcatenation(element as AstInternalNode, delimiter = " ")
+            AstType.ASC -> renderTerminal(element as AstLeafNoValue)
+            AstType.DESC -> renderTerminal(element as AstLeafNoValue)
+            AstType.QUERY -> renderConcatenation(element as AstInternalNode, delimiter = " ")
+            AstType.NODE_LABEL -> renderValue(element as AstLeafValue)
+            AstType.PARAMETER -> renderValue(element as AstLeafValue, "$")
+            AstType.PROPERTY_KEY_NAME -> renderValue(element as AstLeafValue)
+            AstType.PROPERTIES -> renderConcatenation(element as AstInternalNode, ", ","{", "}")
+            AstType.PROPERTY -> renderConcatenation(element as AstInternalNode, ": ")
             AstType.PROPERTY_DOT_ACCESS -> renderConcatenation(element.asNode(), ".")
-            AstType.RELATION_BOTH -> renderRelationDetails(element as AstNode, "-", "-")
-            AstType.RELATION_LEFT -> renderRelationDetails(element as AstNode, "<-", "-")
-            AstType.RELATION_RIGHT -> renderRelationDetails(element as AstNode, "-", "->")
-            AstType.RELATION_LABEL -> renderValue(element as AstValue)
-            AstType.INTEGER -> renderValue(element as AstValue)
-            AstType.DOUBLE -> renderValue(element as AstValue)
-            AstType.NODE -> renderNode(element as AstNode)
-            AstType.RANGE_ONE_OR_MORE -> renderTerminal(element as AstTerminal)
-            AstType.RANGE_FROM -> renderValue(element as AstValue)
-            AstType.RANGE_TO -> renderValue(element as AstValue)
-            AstType.RANGE_EXACTLY -> renderValue(element as AstValue, prefix = "*")
-            AstType.STRING -> renderValue(element as AstValue)
-            AstType.NULL -> renderTerminal(element as AstTerminal)
-            AstType.FUNCTION_NAME -> renderValue(element as AstValue)
-            AstType.FUNCTION_INVOCATION -> renderFunctionInvocation(element as AstNode)
-            AstType.ARGUMENT -> renderConcatenation(element as AstNode, delimiter = ".")
+            AstType.RELATION_BOTH -> renderRelationDetails(element as AstInternalNode, "-", "-")
+            AstType.RELATION_LEFT -> renderRelationDetails(element as AstInternalNode, "<-", "-")
+            AstType.RELATION_RIGHT -> renderRelationDetails(element as AstInternalNode, "-", "->")
+            AstType.RELATION_LABEL -> renderValue(element as AstLeafValue)
+            AstType.INTEGER -> renderValue(element as AstLeafValue)
+            AstType.DOUBLE -> renderValue(element as AstLeafValue)
+            AstType.NODE -> renderNode(element as AstInternalNode)
+            AstType.RANGE_ONE_OR_MORE -> renderTerminal(element as AstLeafNoValue)
+            AstType.RANGE_FROM -> renderValue(element as AstLeafValue)
+            AstType.RANGE_TO -> renderValue(element as AstLeafValue)
+            AstType.RANGE_EXACTLY -> renderValue(element as AstLeafValue, prefix = "*")
+            AstType.STRING -> renderValue(element as AstLeafValue)
+            AstType.NULL -> renderTerminal(element as AstLeafNoValue)
+            AstType.FUNCTION_NAME -> renderValue(element as AstLeafValue)
+            AstType.FUNCTION_INVOCATION -> renderFunctionInvocation(element as AstInternalNode)
+            AstType.ARGUMENT -> renderConcatenation(element as AstInternalNode, delimiter = ".")
             AstType.GROUP -> renderConcatenation(element.asNode(), prefix = "(", suffix = ")")
             AstType.STRUCTURAL_GROUP -> renderConcatenation(element.asNode())
             AstType.COMPARISON -> renderValue(element.asValue(), prefix = " ", suffix = " ")
         }
     }
 
-    private fun renderMatch(astNode: AstNode): String {
+    private fun renderMatch(astNode: AstInternalNode): String {
         val sb = StringBuilder()
 
         astNode.elements.find { it.type == AstType.OPTIONAL }?.let { sb.append(visit(it)).append(" ") }
@@ -74,7 +74,7 @@ class NewCypherRendererImpl : NewCypherRenderer {
         return sb.toString()
     }
 
-    private fun renderRelationDetails(astNode: AstNode, prefix: String, suffix: String): String {
+    private fun renderRelationDetails(astNode: AstInternalNode, prefix: String, suffix: String): String {
         val sb = StringBuilder()
         sb.append(prefix)
 
@@ -105,27 +105,27 @@ class NewCypherRendererImpl : NewCypherRenderer {
         return sb.toString()
     }
 
-    private fun renderBinaryOperator(astNode: AstNode): String {
+    private fun renderBinaryOperator(astNode: AstInternalNode): String {
         val joiner = StringJoiner(" ${astNode.type} ")
         astNode.elements.forEach { joiner.add(visit(it)) }
         return joiner.toString()
     }
 
-    private fun renderTerminal(astTerminal: AstTerminal): String {
-        return astTerminal.type.value!!
+    private fun renderTerminal(astLeafNoValue: AstLeafNoValue): String {
+        return astLeafNoValue.type.value!!
     }
 
-    private fun renderValue(astValue: AstValue, prefix: String = "", suffix: String = ""): String {
+    private fun renderValue(astValue: AstLeafValue, prefix: String = "", suffix: String = ""): String {
         return prefix + astValue.value.toString() + suffix
     }
 
-    private fun renderConcatenation(astNode: AstNode, delimiter: String = "", prefix: String = "", suffix: String = ""): String {
+    private fun renderConcatenation(astNode: AstInternalNode, delimiter: String = "", prefix: String = "", suffix: String = ""): String {
         val joiner = StringJoiner(delimiter, prefix, suffix)
         astNode.elements.forEach { joiner.add(visit(it)) }
         return joiner.toString()
     }
 
-    private fun renderPattern(astNode: AstNode): String {
+    private fun renderPattern(astNode: AstInternalNode): String {
         val sb = StringBuilder()
 
         val varNode = astNode.elements.find { it.type== AstType.VARIABLE }
@@ -140,13 +140,13 @@ class NewCypherRendererImpl : NewCypherRenderer {
         return sb.toString()
     }
 
-    private fun renderPrefix(node: AstNode, prefix: String = node.type.value!!, delimiter: String = ", "): String {
+    private fun renderPrefix(node: AstInternalNode, prefix: String = node.type.value!!, delimiter: String = ", "): String {
         val sb = StringJoiner(delimiter, "$prefix ", "")
         node.elements.forEach { sb.add(visit(it)) }
         return sb.toString()
     }
 
-    private fun renderReturn(node: AstNode): String {
+    private fun renderReturn(node: AstInternalNode): String {
         val sb = StringBuilder("RETURN ")
         node.elements.find { it.type == AstType.DISTINCT }?.let { sb.append(render(it)).append(" ") }
         node.elements.filter { it.type !in arrayOf(AstType.DISTINCT, AstType.ORDER_BY, AstType.SKIP, AstType.LIMIT) }.joinTo(sb, separator = ", ", postfix = " ", transform = {visit(it)})
@@ -154,7 +154,7 @@ class NewCypherRendererImpl : NewCypherRenderer {
         return sb.toString()
     }
 
-    private fun renderNode(node: AstNode): String {
+    private fun renderNode(node: AstInternalNode): String {
         val sb = StringBuilder("(")
         node.elements.find { it.type == AstType.VARIABLE }?.let { visit(it) }.let { sb.append(it) }
         node.elements.filter { it.type == AstType.NODE_LABEL }.ifEmpty { null }?.joinTo(sb, prefix = ":", separator = ":", transform = {visit(it)})
@@ -163,7 +163,7 @@ class NewCypherRendererImpl : NewCypherRenderer {
         return sb.toString()
     }
 
-    private fun renderFunctionInvocation(node: AstNode): String {
+    private fun renderFunctionInvocation(node: AstInternalNode): String {
         val sb = StringBuilder()
         node.elements.find { it.type == AstType.FUNCTION_NAME }?.let { sb.append(visit(it)) }
         sb.append("(")

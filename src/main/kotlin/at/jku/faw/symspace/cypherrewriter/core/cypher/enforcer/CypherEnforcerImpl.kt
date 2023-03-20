@@ -24,11 +24,11 @@ class CypherEnforcerImpl(private val appContext: CypherAppContext, private val p
         val filterString = getFilterString(filter, protectedVar)
 
 
-        val filterAst = AstValue(AstType.STRING, filterString)
+        val filterAst = AstLeafValue(AstType.STRING, filterString)
         if (whereNode.elements.isEmpty()) {
             whereNode.elements.add(filterAst)
         } else {
-            val andNode = AstNode(AstType.AND)
+            val andNode = AstInternalNode(AstType.AND)
             andNode.elements.add(filterAst)
             andNode.elements.addAll(whereNode.elements) //TODO add support for parenthesis
             whereNode.elements.clear()
@@ -52,19 +52,19 @@ class CypherEnforcerImpl(private val appContext: CypherAppContext, private val p
     }
 
 
-    private fun getWhere(enforcementNode: AstNode): AstNode {
+    private fun getWhere(enforcementNode: AstInternalNode): AstInternalNode {
         var whereNode = enforcementNode.elements.find { it.type == AstType.WHERE }?.asNode()
         if (whereNode == null) {
-            whereNode = AstNode(AstType.WHERE)
+            whereNode = AstInternalNode(AstType.WHERE)
             enforcementNode.elements.add(whereNode)
         }
         return whereNode
     }
 
-    private fun getVariable(astNode: AstNode): AstValue {
+    private fun getVariable(astNode: AstInternalNode): AstLeafValue {
         var varNode = astNode.elements.find { it.type == AstType.VARIABLE }?.asValue()
         if (varNode == null) {
-            varNode = AstValue(AstType.VARIABLE, "_genVar${Random.nextInt(0, Int.MAX_VALUE)}")
+            varNode = AstLeafValue(AstType.VARIABLE, "_genVar${Random.nextInt(0, Int.MAX_VALUE)}")
             astNode.elements.add(varNode)
         }
         return varNode

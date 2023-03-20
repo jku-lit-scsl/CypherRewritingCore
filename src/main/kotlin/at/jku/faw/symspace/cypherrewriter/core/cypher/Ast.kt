@@ -1,37 +1,37 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher
 
-sealed class AstElement(val type: AstType) {
+sealed class AstNode(val type: AstType) {
 
 
-    abstract fun copy(overrideType: AstType = this.type): AstElement
-    fun asNode(): AstNode {
-        return this as AstNode
+    abstract fun copy(overrideType: AstType = this.type): AstNode
+    fun asNode(): AstInternalNode {
+        return this as AstInternalNode
     }
 
-    fun asValue(): AstValue {
-        return this as AstValue
+    fun asValue(): AstLeafValue {
+        return this as AstLeafValue
     }
 }
 
-class AstNode(type: AstType) : AstElement(type) {
-    val elements: MutableList<AstElement> = mutableListOf()
+class AstInternalNode(type: AstType) : AstNode(type) {
+    val elements: MutableList<AstNode> = mutableListOf()
 
-    override fun copy(overrideType: AstType): AstNode {
-        return AstNode(overrideType).also { copy ->
+    override fun copy(overrideType: AstType): AstInternalNode {
+        return AstInternalNode(overrideType).also { copy ->
             this.elements.map { it.copy() }.forEach { copy.elements.add(it) }
         }
     }
 }
 
-class AstValue(type: AstType, val value: Any) : AstElement(type) {
-    override fun copy(overrideType: AstType): AstValue {
-        return AstValue(overrideType, value)
+class AstLeafValue(type: AstType, val value: Any) : AstNode(type) {
+    override fun copy(overrideType: AstType): AstLeafValue {
+        return AstLeafValue(overrideType, value)
     }
 }
 
-class AstTerminal(type: AstType) : AstElement(type) {
-    override fun copy(overrideType: AstType): AstTerminal {
-        return AstTerminal(overrideType)
+class AstLeafNoValue(type: AstType) : AstNode(type) {
+    override fun copy(overrideType: AstType): AstLeafNoValue {
+        return AstLeafNoValue(overrideType)
     }
 }
 

@@ -157,17 +157,17 @@ class PermissionDetectorImpl(
         ).isNotEmpty()
     }
 
-    private fun getVariable(ctx: CommonContext, ast: AstNode): Variable {
+    private fun getVariable(ctx: CommonContext, ast: AstInternalNode): Variable {
         val name = ast.elements.find { it.type == AstType.VARIABLE }?.asValue()?.value?.toString() ?: "*"
         return createNewVariable(ctx, name)
     }
 
-    private fun getLabels(ast: AstElement): Set<String> {
+    private fun getLabels(ast: AstNode): Set<String> {
         return ast.asNode().elements.filter { it.type == AstType.NODE_LABEL || it.type == AstType.RELATION_LABEL }
             .map { it.asValue().value.toString() }.toSet().ifEmpty { setOf("*") }
     }
 
-    private fun getNode(ctx: CommonContext, ast: AstElement): Node {
+    private fun getNode(ctx: CommonContext, ast: AstNode): Node {
         val parentNodeBackup = ctx.parentNode
         ctx.parentNode = ast.asNode()
         val variable = getVariable(ctx, ast.asNode())
@@ -178,7 +178,7 @@ class PermissionDetectorImpl(
         return Node(variable, labels)
     }
 
-    private fun getRelation(ctx: CommonContext, ast: AstElement): Relation {
+    private fun getRelation(ctx: CommonContext, ast: AstNode): Relation {
         val parentNodeBackup = ctx.parentNode
         ctx.parentNode = ast.asNode()
         val variable = getVariable(ctx, ast.asNode())
@@ -189,7 +189,7 @@ class PermissionDetectorImpl(
         return Relation(variable, ast.type, labels)
     }
 
-    override fun process(node: AstNode): List<Detection> {
+    override fun process(node: AstInternalNode): List<Detection> {
         val detections = mutableListOf<Detection>()
 
         val queryContext = QueryContext()
@@ -234,7 +234,7 @@ class PermissionDetectorImpl(
         return ctx
     }
 
-    private fun traverse(ctx: CommonContext, ast: AstElement) {
+    private fun traverse(ctx: CommonContext, ast: AstNode) {
         when (ast.type) {
             AstType.PATTERN -> processPattern(ctx, ast.asNode())
             AstType.NODE -> processNode(ctx, ast.asNode())
@@ -253,14 +253,14 @@ class PermissionDetectorImpl(
         }
     }
 
-    private fun processMatch(ctx: CommonContext, ast: AstNode) {
+    private fun processMatch(ctx: CommonContext, ast: AstInternalNode) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             ctx.matchClause = ast
         }
         traverseChildren(ctx, ast)
     }
 
-    private fun processFunctionName(ctx: CommonContext, ast: AstValue) {
+    private fun processFunctionName(ctx: CommonContext, ast: AstLeafValue) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             ctx.isAggregationFunction = ast.value.toString() in ReturnTypeMetadata.aggregationFunctions
         }
@@ -274,8 +274,8 @@ class PermissionDetectorImpl(
         }
     }
 
-    private fun traverseChildren(ctx: CommonContext, ast: AstElement) {
-        if (ast is AstNode) {
+    private fun traverseChildren(ctx: CommonContext, ast: AstNode) {
+        if (ast is AstInternalNode) {
             ast.elements.forEach {
                 ctx.parentNode = ast
                 traverse(ctx, it)
@@ -283,7 +283,7 @@ class PermissionDetectorImpl(
         }
     }
 
-    private fun processReturn(ctx: CommonContext, ast: AstNode) {
+    private fun processReturn(ctx: CommonContext, ast: AstInternalNode) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             ctx.isReturnClause = true
             traverseChildren(ctx, ast)
@@ -293,7 +293,7 @@ class PermissionDetectorImpl(
         }
     }
 
-    private fun processPattern(ctx: CommonContext, ast: AstNode) {
+    private fun processPattern(ctx: CommonContext, ast: AstInternalNode) {
         ctx.patternContext = PatternContext()
         traverseChildren(ctx, ast)
         ctx.patternContext?.let { ctx.paths.addAll(it.getPaths()) }
@@ -316,14 +316,14 @@ class PermissionDetectorImpl(
         }
     }
 
-    private fun processProperties(ctx: CommonContext, ast: AstNode) {
+    private fun processProperties(ctx: CommonContext, ast: AstInternalNode) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             ctx.isFiltered = true
         }
         traverseChildren(ctx, ast)
     }
 
-    private fun processNode(ctx: CommonContext, ast: AstNode) {
+    private fun processNode(ctx: CommonContext, ast: AstInternalNode) {
         val node = getNode(ctx, ast)
         ctx.nodes.add(node)
         ctx.patternContext?.add(node)
@@ -333,7 +333,7 @@ class PermissionDetectorImpl(
         updateFilterStatusOfLastVar(ctx)
     }
 
-    private fun processRelation(ctx: CommonContext, ast: AstNode) {
+    private fun processRelation(ctx: CommonContext, ast: AstInternalNode) {
         val relation = getRelation(ctx, ast)
         ctx.relations.add(relation)
         ctx.patternContext?.add(relation)
@@ -343,7 +343,7 @@ class PermissionDetectorImpl(
         updateFilterStatusOfLastVar(ctx)
     }
 
-    private fun processWhere(ctx: CommonContext, ast: AstNode) {
+    private fun processWhere(ctx: CommonContext, ast: AstInternalNode) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             ctx.isWhereClause = true
         }
@@ -378,7 +378,7 @@ class PermissionDetectorImpl(
         }
     }
 
-    private fun processVariable(ctx: CommonContext, ast: AstValue) {
+    private fun processVariable(ctx: CommonContext, ast: AstLeafValue) {
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             val variableName = ast.value.toString()
             val variable = ctx.variables.find { it.name == variableName }
@@ -402,7 +402,7 @@ class PermissionDetectorImpl(
         return variable
     }
 
-    private fun processPropertyDotAccess(ctx: CommonContext, ast: AstNode) {
+    private fun processPropertyDotAccess(ctx: CommonContext, ast: AstInternalNode) {
         traverseChildren(ctx, ast)
         if (ctx.evaluateQuerySpecifics && ctx is QueryContext) {
             if (ctx.isWhereClause) {

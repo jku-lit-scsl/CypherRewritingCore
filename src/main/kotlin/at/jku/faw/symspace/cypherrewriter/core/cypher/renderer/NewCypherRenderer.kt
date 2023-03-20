@@ -1,7 +1,7 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher.renderer
 
-import at.jku.faw.symspace.cypherrewriter.core.cypher.AstElement
+import at.jku.faw.symspace.cypherrewriter.core.cypher.AstNode
 
 interface NewCypherRenderer {
-    fun render(astElement: AstElement): String
+    fun render(astNode: AstNode): String
 }

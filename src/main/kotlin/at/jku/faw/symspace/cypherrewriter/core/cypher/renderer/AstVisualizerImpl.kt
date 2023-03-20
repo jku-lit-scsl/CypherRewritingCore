@@ -7,27 +7,27 @@ import org.springframework.stereotype.Component
 class AstVisualizerImpl : AstVisualizer {
 
     private val indentation: String = "    "
-    override fun render(astElement: AstElement): String {
-        return render(astElement, 0)
+    override fun render(astNode: AstNode): String {
+        return render(astNode, 0)
     }
 
-    private fun render(astElement: AstElement, level: Int): String {
-        return when (astElement) {
-            is AstNode -> renderNode(astElement, level)
-            is AstValue -> renderValue(astElement, level)
-            is AstTerminal -> renderTerminal(astElement, level)
+    private fun render(astNode: AstNode, level: Int): String {
+        return when (astNode) {
+            is AstInternalNode -> renderNode(astNode, level)
+            is AstLeafValue -> renderValue(astNode, level)
+            is AstLeafNoValue -> renderTerminal(astNode, level)
         }
     }
 
-    private fun renderTerminal(astTerminal: AstTerminal, level: Int): String {
-        return getIndentation(level) + astTerminal.type.name + "\n"
+    private fun renderTerminal(astLeafNoValue: AstLeafNoValue, level: Int): String {
+        return getIndentation(level) + astLeafNoValue.type.name + "\n"
     }
 
-    private fun renderValue(astValue: AstValue, level: Int): String {
+    private fun renderValue(astValue: AstLeafValue, level: Int): String {
         return getIndentation(level) + astValue.type.name + " = " + astValue.value + "\n"
     }
 
-    private fun renderNode(astNode: AstNode, level: Int): String {
+    private fun renderNode(astNode: AstInternalNode, level: Int): String {
         return getIndentation(level) + astNode.type.name + " {\n" +
                 astNode.elements.joinToString(separator = "") { render(it, level + 1) } +
                 getIndentation(level) + "}\n"

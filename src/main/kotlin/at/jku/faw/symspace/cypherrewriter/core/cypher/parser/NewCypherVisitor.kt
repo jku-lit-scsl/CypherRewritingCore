@@ -7,16 +7,16 @@ import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.misc.ParseCancellationException
 import org.antlr.v4.runtime.tree.TerminalNode
 
-class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
+class NewCypherVisitor : CypherBaseVisitor<AstNode>() {
 
-    private fun add(node: AstNode, childNodes: List<ParserRuleContext>) {
+    private fun add(node: AstInternalNode, childNodes: List<ParserRuleContext>) {
         childNodes.forEach { add(node, it) }
     }
 
-    private fun add(node: AstElement, childNode: AstElement?): Boolean {
+    private fun add(node: AstNode, childNode: AstNode?): Boolean {
         childNode ?: return false
 
-        if (node !is AstNode) {
+        if (node !is AstInternalNode) {
             throw ParseCancellationException("AstElement should be AstNode but is not")
         }
 
@@ -37,19 +37,19 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return true
     }
 
-    private fun isChildNodeTemporary(childNode: AstElement): Boolean {
-        return childNode is AstNode && childNode.type == AstType.TEMPORARY
+    private fun isChildNodeTemporary(childNode: AstNode): Boolean {
+        return childNode is AstInternalNode && childNode.type == AstType.TEMPORARY
     }
 
-    private fun isEmptyGroup(childNode: AstElement): Boolean {
-        if(childNode is AstNode && childNode.type in setOf( AstType.GROUP, AstType.STRUCTURAL_GROUP)) {
+    private fun isEmptyGroup(childNode: AstNode): Boolean {
+        if(childNode is AstInternalNode && childNode.type in setOf( AstType.GROUP, AstType.STRUCTURAL_GROUP)) {
             return childNode.elements.isEmpty()
         }
         return false
     }
 
-    private fun isParentGroupAndChildGroupWithOneElement(node: AstElement, childNode: AstElement): Boolean {
-        if (node !is AstNode || childNode !is AstNode) {
+    private fun isParentGroupAndChildGroupWithOneElement(node: AstNode, childNode: AstNode): Boolean {
+        if (node !is AstInternalNode || childNode !is AstInternalNode) {
             return false
         }
         if(node.type != AstType.GROUP) {
@@ -61,7 +61,7 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return childNode.elements.size == 1
     }
 
-    private fun add(node: AstNode, ctx: ParserRuleContext?): Boolean {
+    private fun add(node: AstInternalNode, ctx: ParserRuleContext?): Boolean {
         ctx ?: return false
         return add(node, visit(ctx))
     }
@@ -74,8 +74,8 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return value != null
     }
 
-    override fun aggregateResult(aggregate: AstElement?, nextResult: AstElement?): AstElement {
-        val myAggregate = aggregate ?: AstNode(AstType.TEMPORARY)
+    override fun aggregateResult(aggregate: AstNode?, nextResult: AstNode?): AstNode {
+        val myAggregate = aggregate ?: AstInternalNode(AstType.TEMPORARY)
 
         if (nextResult != null) {
             add(myAggregate, nextResult)
@@ -84,12 +84,12 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return myAggregate
     }
 
-    override fun visitOC_Cypher(ctx: CypherParser.OC_CypherContext): AstNode {
-        return AstNode(AstType.QUERY).also { add(it, ctx.oC_Statement()) }
+    override fun visitOC_Cypher(ctx: CypherParser.OC_CypherContext): AstInternalNode {
+        return AstInternalNode(AstType.QUERY).also { add(it, ctx.oC_Statement()) }
     }
 
-    override fun visitOC_SinglePartQuery(ctx: CypherParser.OC_SinglePartQueryContext): AstNode {
-        val node = AstNode(AstType.TEMPORARY)
+    override fun visitOC_SinglePartQuery(ctx: CypherParser.OC_SinglePartQueryContext): AstInternalNode {
+        val node = AstInternalNode(AstType.TEMPORARY)
 
         add(node, ctx.oC_ReadingClause())
         add(node, ctx.oC_UpdatingClause())
@@ -98,8 +98,8 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return node
     }
 
-    override fun visitOC_MultiPartQuery(ctx: CypherParser.OC_MultiPartQueryContext): AstNode {
-        val node = AstNode(AstType.TEMPORARY)
+    override fun visitOC_MultiPartQuery(ctx: CypherParser.OC_MultiPartQueryContext): AstInternalNode {
+        val node = AstInternalNode(AstType.TEMPORARY)
 
         add(node, ctx.oC_MultiPartQueryGroup())
         add(node, ctx.oC_SinglePartQuery())
@@ -107,8 +107,8 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return node
     }
 
-    override fun visitOC_MultiPartQueryGroup(ctx: CypherParser.OC_MultiPartQueryGroupContext): AstNode {
-        val node = AstNode(AstType.TEMPORARY)
+    override fun visitOC_MultiPartQueryGroup(ctx: CypherParser.OC_MultiPartQueryGroupContext): AstInternalNode {
+        val node = AstInternalNode(AstType.TEMPORARY)
 
         add(node, ctx.oC_ReadingClause())
         add(node, ctx.oC_UpdatingClause())
@@ -117,44 +117,44 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return node
     }
 
-    override fun visitOC_Match(ctx: CypherParser.OC_MatchContext): AstNode {
-        val node = AstNode(AstType.MATCH)
+    override fun visitOC_Match(ctx: CypherParser.OC_MatchContext): AstInternalNode {
+        val node = AstInternalNode(AstType.MATCH)
         if (exists(ctx.OPTIONAL())) {
-            add(node, AstTerminal(AstType.OPTIONAL))
+            add(node, AstLeafNoValue(AstType.OPTIONAL))
         }
         add(node, ctx.oC_Pattern())
         add(node, ctx.oC_Where())
         return node
     }
 
-    override fun visitOC_PatternPart(ctx: CypherParser.OC_PatternPartContext): AstNode {
-        return AstNode(AstType.PATTERN).also {
+    override fun visitOC_PatternPart(ctx: CypherParser.OC_PatternPartContext): AstInternalNode {
+        return AstInternalNode(AstType.PATTERN).also {
             add(it, visitChildren(ctx))
         }
     }
 
-    override fun visitOC_NodePattern(ctx: CypherParser.OC_NodePatternContext): AstElement {
-        return AstNode(AstType.NODE).also {
+    override fun visitOC_NodePattern(ctx: CypherParser.OC_NodePatternContext): AstNode {
+        return AstInternalNode(AstType.NODE).also {
             add(it, visitChildren(ctx))
         }
     }
 
-    override fun visitOC_LabelName(ctx: CypherParser.OC_LabelNameContext): AstValue {
-        return AstValue(AstType.NODE_LABEL, ctx.oC_SchemaName().text)
+    override fun visitOC_LabelName(ctx: CypherParser.OC_LabelNameContext): AstLeafValue {
+        return AstLeafValue(AstType.NODE_LABEL, ctx.oC_SchemaName().text)
     }
 
-    override fun visitOC_Parameter(ctx: CypherParser.OC_ParameterContext): AstValue {
-        return AstValue(AstType.PARAMETER, ctx.oC_SymbolicName().text)
+    override fun visitOC_Parameter(ctx: CypherParser.OC_ParameterContext): AstLeafValue {
+        return AstLeafValue(AstType.PARAMETER, ctx.oC_SymbolicName().text)
     }
 
-    override fun visitOC_PropertyKeyName(ctx: CypherParser.OC_PropertyKeyNameContext): AstValue {
-        return AstValue(AstType.PROPERTY_KEY_NAME, ctx.oC_SchemaName().text)
+    override fun visitOC_PropertyKeyName(ctx: CypherParser.OC_PropertyKeyNameContext): AstLeafValue {
+        return AstLeafValue(AstType.PROPERTY_KEY_NAME, ctx.oC_SchemaName().text)
     }
 
-    override fun visitOC_MapLiteral(ctx: CypherParser.OC_MapLiteralContext): AstNode {
-        return AstNode(AstType.PROPERTIES).also {
+    override fun visitOC_MapLiteral(ctx: CypherParser.OC_MapLiteralContext): AstInternalNode {
+        return AstInternalNode(AstType.PROPERTIES).also {
             for (i in 0 until ctx.oC_PropertyKeyName().size) {
-                val node = AstNode(AstType.PROPERTY)
+                val node = AstInternalNode(AstType.PROPERTY)
                 add(node, ctx.oC_PropertyKeyName(i))
                 add(node, ctx.oC_Expression(i))
                 add(it, node)
@@ -162,16 +162,16 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         }
     }
 
-    override fun visitOC_Return(ctx: CypherParser.OC_ReturnContext): AstNode {
-        val node = AstNode(AstType.RETURN)
+    override fun visitOC_Return(ctx: CypherParser.OC_ReturnContext): AstInternalNode {
+        val node = AstInternalNode(AstType.RETURN)
         add(node, ctx.oC_ProjectionBody())
         return node
     }
 
-    override fun visitOC_ProjectionBody(ctx: CypherParser.OC_ProjectionBodyContext): AstNode {
-        val node = AstNode(AstType.TEMPORARY)
+    override fun visitOC_ProjectionBody(ctx: CypherParser.OC_ProjectionBodyContext): AstInternalNode {
+        val node = AstInternalNode(AstType.TEMPORARY)
         if (ctx.DISTINCT() != null) {
-            add(node, AstTerminal(AstType.DISTINCT))
+            add(node, AstLeafNoValue(AstType.DISTINCT))
         }
 
         add(node, visitChildren(ctx))
@@ -179,86 +179,86 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return node
     }
 
-    override fun visitOC_ProjectionItems(ctx: CypherParser.OC_ProjectionItemsContext): AstNode {
-        val node = AstNode(AstType.TEMPORARY)
+    override fun visitOC_ProjectionItems(ctx: CypherParser.OC_ProjectionItemsContext): AstInternalNode {
+        val node = AstInternalNode(AstType.TEMPORARY)
         if (ctx.text.startsWith("*")) {
-            add(node, AstTerminal(AstType.ASTERISK))
+            add(node, AstLeafNoValue(AstType.ASTERISK))
         }
         add(node, visitChildren(ctx))
         return node
     }
 
-    override fun visitOC_Order(ctx: CypherParser.OC_OrderContext?): AstNode {
-        return AstNode(AstType.ORDER_BY).also {
+    override fun visitOC_Order(ctx: CypherParser.OC_OrderContext?): AstInternalNode {
+        return AstInternalNode(AstType.ORDER_BY).also {
             add(it, visitChildren(ctx))
         }
     }
 
-    override fun visitOC_SortItem(ctx: CypherParser.OC_SortItemContext): AstNode {
-        return AstNode(AstType.SORT_ITEM).also {
+    override fun visitOC_SortItem(ctx: CypherParser.OC_SortItemContext): AstInternalNode {
+        return AstInternalNode(AstType.SORT_ITEM).also {
             add(it, ctx.oC_Expression())
             if (exists(ctx.ASC()) || exists(ctx.ASCENDING())) {
-                add(it, AstTerminal(AstType.ASC))
+                add(it, AstLeafNoValue(AstType.ASC))
             } else if (exists(ctx.DESC()) || exists(ctx.DESCENDING())) {
-                add(it, AstTerminal(AstType.DESC))
+                add(it, AstLeafNoValue(AstType.DESC))
             }
         }
     }
 
 
-    override fun visitOC_Skip(ctx: CypherParser.OC_SkipContext): AstNode {
-        return AstNode(AstType.SKIP).also { add(it, visitChildren(ctx)) }
+    override fun visitOC_Skip(ctx: CypherParser.OC_SkipContext): AstInternalNode {
+        return AstInternalNode(AstType.SKIP).also { add(it, visitChildren(ctx)) }
     }
 
-    override fun visitOC_Limit(ctx: CypherParser.OC_LimitContext): AstNode {
-        return AstNode(AstType.LIMIT).also { add(it, visitChildren(ctx)) }
+    override fun visitOC_Limit(ctx: CypherParser.OC_LimitContext): AstInternalNode {
+        return AstInternalNode(AstType.LIMIT).also { add(it, visitChildren(ctx)) }
     }
 
-    override fun visitOC_ProjectionItem(ctx: CypherParser.OC_ProjectionItemContext): AstNode {
+    override fun visitOC_ProjectionItem(ctx: CypherParser.OC_ProjectionItemContext): AstInternalNode {
         val node = when (exists(ctx.AS())) {
-            true -> AstNode(AstType.AS)
-            false -> AstNode(AstType.TEMPORARY)
+            true -> AstInternalNode(AstType.AS)
+            false -> AstInternalNode(AstType.TEMPORARY)
         }
 
         add(node, visitChildren(ctx))
         return node
     }
 
-    override fun visitOC_Variable(ctx: CypherParser.OC_VariableContext): AstValue {
-        return AstValue(AstType.VARIABLE, ctx.text)
+    override fun visitOC_Variable(ctx: CypherParser.OC_VariableContext): AstLeafValue {
+        return AstLeafValue(AstType.VARIABLE, ctx.text)
     }
 
-    override fun visitOC_OrExpression(ctx: CypherParser.OC_OrExpressionContext): AstNode {
+    override fun visitOC_OrExpression(ctx: CypherParser.OC_OrExpressionContext): AstInternalNode {
         return when (ctx.OR().size > 0) {
-            true -> AstNode(AstType.OR)
-            false -> AstNode(AstType.TEMPORARY)
+            true -> AstInternalNode(AstType.OR)
+            false -> AstInternalNode(AstType.TEMPORARY)
         }.also {
             add(it, visitChildren(ctx))
         }
     }
 
-    override fun visitOC_XorExpression(ctx: CypherParser.OC_XorExpressionContext): AstNode {
+    override fun visitOC_XorExpression(ctx: CypherParser.OC_XorExpressionContext): AstInternalNode {
         return when (ctx.XOR().size > 0) {
-            true -> AstNode(AstType.XOR)
-            false -> AstNode(AstType.TEMPORARY)
+            true -> AstInternalNode(AstType.XOR)
+            false -> AstInternalNode(AstType.TEMPORARY)
         }.also {
             add(it, visitChildren(ctx))
         }
     }
 
-    override fun visitOC_AndExpression(ctx: CypherParser.OC_AndExpressionContext): AstNode {
+    override fun visitOC_AndExpression(ctx: CypherParser.OC_AndExpressionContext): AstInternalNode {
         return when (ctx.AND().size > 0) {
-            true -> AstNode(AstType.AND)
-            false -> AstNode(AstType.TEMPORARY)
+            true -> AstInternalNode(AstType.AND)
+            false -> AstInternalNode(AstType.TEMPORARY)
         }.also {
             ctx.children.forEach {childCtx ->
                 val childNode = visit(childCtx)
-                if (childNode is AstNode && childNode.type == AstType.STRUCTURAL_GROUP && childNode.elements.size == 1) {
+                if (childNode is AstInternalNode && childNode.type == AstType.STRUCTURAL_GROUP && childNode.elements.size == 1) {
                     add(it, childNode)
-                } else if (childNode is AstNode && childNode.type == AstType.STRUCTURAL_GROUP && childNode.elements.size == 0) {
+                } else if (childNode is AstInternalNode && childNode.type == AstType.STRUCTURAL_GROUP && childNode.elements.size == 0) {
                     // ignore
                 } else {
-                    val group = AstNode(AstType.STRUCTURAL_GROUP)
+                    val group = AstInternalNode(AstType.STRUCTURAL_GROUP)
                     add(group, childNode)
                     add(it, group)
                 }
@@ -266,12 +266,12 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         }
     }
 
-    override fun visitOC_NotExpression(ctx: CypherParser.OC_NotExpressionContext): AstNode {
-        val returnNode = AstNode(AstType.TEMPORARY)
-        var node: AstNode = returnNode
+    override fun visitOC_NotExpression(ctx: CypherParser.OC_NotExpressionContext): AstInternalNode {
+        val returnNode = AstInternalNode(AstType.TEMPORARY)
+        var node: AstInternalNode = returnNode
 
         for (i in 1..ctx.NOT().size) {
-            val newNode = AstNode(AstType.NOT)
+            val newNode = AstInternalNode(AstType.NOT)
             add(node, newNode)
             node = newNode
         }
@@ -285,24 +285,24 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
         return AstValue(AstType.EXPRESSION, ctx.text)
     }*/
 
-    override fun visitOC_RelationshipPattern(ctx: CypherParser.OC_RelationshipPatternContext): AstNode {
+    override fun visitOC_RelationshipPattern(ctx: CypherParser.OC_RelationshipPatternContext): AstInternalNode {
         val node = when {
             exists(ctx.oC_LeftArrowHead()) && !exists(ctx.oC_RightArrowHead()) -> AstType.RELATION_LEFT
             !exists(ctx.oC_LeftArrowHead()) && exists(ctx.oC_RightArrowHead()) -> AstType.RELATION_RIGHT
             else -> AstType.RELATION_BOTH
-        }.let { AstNode(it) }
+        }.let { AstInternalNode(it) }
 
         add(node, visitChildren(ctx))
         return node
     }
 
-    override fun visitOC_RelTypeName(ctx: CypherParser.OC_RelTypeNameContext): AstValue {
-        return AstValue(AstType.RELATION_LABEL, ctx.text)
+    override fun visitOC_RelTypeName(ctx: CypherParser.OC_RelTypeNameContext): AstLeafValue {
+        return AstLeafValue(AstType.RELATION_LABEL, ctx.text)
     }
 
-    override fun visitOC_RangeLiteral(ctx: CypherParser.OC_RangeLiteralContext): AstElement {
+    override fun visitOC_RangeLiteral(ctx: CypherParser.OC_RangeLiteralContext): AstNode {
         return when (ctx.oC_IntegerLiteral().size) {
-            0 -> AstTerminal(AstType.RANGE_ONE_OR_MORE)
+            0 -> AstLeafNoValue(AstType.RANGE_ONE_OR_MORE)
             1 -> processSingleRangeDefinition(ctx)
             2 -> processFullRangeDefinition(ctx)
             else -> throw ParseCancellationException("Invalid range literal")
@@ -310,7 +310,7 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
 
     }
 
-    private fun processSingleRangeDefinition(ctx: CypherParser.OC_RangeLiteralContext): AstValue {
+    private fun processSingleRangeDefinition(ctx: CypherParser.OC_RangeLiteralContext): AstLeafValue {
         var type = AstType.RANGE_EXACTLY
         var dotsSeen = false
         for (child in ctx.children) {
@@ -323,75 +323,75 @@ class NewCypherVisitor : CypherBaseVisitor<AstElement>() {
             }
         }
 
-        return AstValue(type, ctx.oC_IntegerLiteral(0).text.toInt())
+        return AstLeafValue(type, ctx.oC_IntegerLiteral(0).text.toInt())
     }
 
-    private fun processFullRangeDefinition(ctx: CypherParser.OC_RangeLiteralContext): AstNode {
-        val tmp = AstNode(AstType.TEMPORARY)
-        AstValue(AstType.RANGE_FROM, ctx.oC_IntegerLiteral(0).text.toInt()).also { add(tmp, it) }
-        AstValue(AstType.RANGE_TO, ctx.oC_IntegerLiteral(1).text.toInt()).also { add(tmp, it) }
+    private fun processFullRangeDefinition(ctx: CypherParser.OC_RangeLiteralContext): AstInternalNode {
+        val tmp = AstInternalNode(AstType.TEMPORARY)
+        AstLeafValue(AstType.RANGE_FROM, ctx.oC_IntegerLiteral(0).text.toInt()).also { add(tmp, it) }
+        AstLeafValue(AstType.RANGE_TO, ctx.oC_IntegerLiteral(1).text.toInt()).also { add(tmp, it) }
         return tmp
     }
 
-    override fun visitOC_DoubleLiteral(ctx: CypherParser.OC_DoubleLiteralContext): AstElement {
-        return AstValue(AstType.DOUBLE, ctx.text.toDouble())
+    override fun visitOC_DoubleLiteral(ctx: CypherParser.OC_DoubleLiteralContext): AstNode {
+        return AstLeafValue(AstType.DOUBLE, ctx.text.toDouble())
     }
 
-    override fun visitOC_IntegerLiteral(ctx: CypherParser.OC_IntegerLiteralContext): AstElement {
-        return AstValue(AstType.INTEGER, ctx.text.toInt())
+    override fun visitOC_IntegerLiteral(ctx: CypherParser.OC_IntegerLiteralContext): AstNode {
+        return AstLeafValue(AstType.INTEGER, ctx.text.toInt())
     }
 
-    override fun visitOC_Literal(ctx: CypherParser.OC_LiteralContext): AstElement {
+    override fun visitOC_Literal(ctx: CypherParser.OC_LiteralContext): AstNode {
         return when {
-            exists(ctx.StringLiteral()) -> AstValue(AstType.STRING, ctx.text)
-            exists(ctx.NULL()) -> AstTerminal(AstType.NULL)
+            exists(ctx.StringLiteral()) -> AstLeafValue(AstType.STRING, ctx.text)
+            exists(ctx.NULL()) -> AstLeafNoValue(AstType.NULL)
             else -> visitChildren(ctx)
         }
     }
 
-    override fun visitOC_FunctionInvocation(ctx: CypherParser.OC_FunctionInvocationContext): AstElement {
-        val node = AstNode(AstType.FUNCTION_INVOCATION)
+    override fun visitOC_FunctionInvocation(ctx: CypherParser.OC_FunctionInvocationContext): AstNode {
+        val node = AstInternalNode(AstType.FUNCTION_INVOCATION)
         add(node, ctx.oC_FunctionName())
         ctx.DISTINCT()?.let { add(node, visit(ctx.DISTINCT())) }
         ctx.oC_Expression().forEach {
-            val arg = AstNode(AstType.ARGUMENT)
+            val arg = AstInternalNode(AstType.ARGUMENT)
             add(arg, visit(it))
             add(node, arg)
         }
         return node
     }
 
-    override fun visitOC_FunctionName(ctx: CypherParser.OC_FunctionNameContext): AstElement {
-        return AstValue(AstType.FUNCTION_NAME, ctx.text)
+    override fun visitOC_FunctionName(ctx: CypherParser.OC_FunctionNameContext): AstNode {
+        return AstLeafValue(AstType.FUNCTION_NAME, ctx.text)
     }
 
-    override fun visitOC_ParenthesizedExpression(ctx: CypherParser.OC_ParenthesizedExpressionContext?): AstElement {
-        val node = AstNode(AstType.GROUP)
+    override fun visitOC_ParenthesizedExpression(ctx: CypherParser.OC_ParenthesizedExpressionContext?): AstNode {
+        val node = AstInternalNode(AstType.GROUP)
         add(node, visitChildren(ctx))
         return node
     }
 
-    override fun visitOC_Where(ctx: CypherParser.OC_WhereContext?): AstElement {
-        val node = AstNode(AstType.WHERE)
+    override fun visitOC_Where(ctx: CypherParser.OC_WhereContext?): AstNode {
+        val node = AstInternalNode(AstType.WHERE)
         add(node, visitChildren(ctx))
         return node
     }
 
-    override fun visitOC_PropertyOrLabelsExpression(ctx: CypherParser.OC_PropertyOrLabelsExpressionContext?): AstElement {
-        val node = AstNode(AstType.PROPERTY_DOT_ACCESS)
+    override fun visitOC_PropertyOrLabelsExpression(ctx: CypherParser.OC_PropertyOrLabelsExpressionContext?): AstNode {
+        val node = AstInternalNode(AstType.PROPERTY_DOT_ACCESS)
         add(node, visitChildren(ctx))
         return node
     }
 
-    override fun visitOC_PartialComparisonExpression(ctx: CypherParser.OC_PartialComparisonExpressionContext): AstElement {
-        val node = AstNode(AstType.TEMPORARY)
+    override fun visitOC_PartialComparisonExpression(ctx: CypherParser.OC_PartialComparisonExpressionContext): AstNode {
+        val node = AstInternalNode(AstType.TEMPORARY)
         val valNode = when {
-            ctx.text.startsWith("=") -> AstValue(AstType.COMPARISON, "=")
-            ctx.text.startsWith("<>") -> AstValue(AstType.COMPARISON, "<>")
-            ctx.text.startsWith("<") -> AstValue(AstType.COMPARISON, "<")
-            ctx.text.startsWith(">") -> AstValue(AstType.COMPARISON, ">")
-            ctx.text.startsWith(">=") -> AstValue(AstType.COMPARISON, ">=")
-            ctx.text.startsWith("<=") -> AstValue(AstType.COMPARISON, "<=")
+            ctx.text.startsWith("=") -> AstLeafValue(AstType.COMPARISON, "=")
+            ctx.text.startsWith("<>") -> AstLeafValue(AstType.COMPARISON, "<>")
+            ctx.text.startsWith("<") -> AstLeafValue(AstType.COMPARISON, "<")
+            ctx.text.startsWith(">") -> AstLeafValue(AstType.COMPARISON, ">")
+            ctx.text.startsWith(">=") -> AstLeafValue(AstType.COMPARISON, ">=")
+            ctx.text.startsWith("<=") -> AstLeafValue(AstType.COMPARISON, "<=")
             else -> throw ParseCancellationException("Unrecognized comparison operator in \"${ctx.text}\"")
         }
         add(node, valNode)

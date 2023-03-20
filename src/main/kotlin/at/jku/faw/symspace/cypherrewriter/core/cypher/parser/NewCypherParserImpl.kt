@@ -2,7 +2,7 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher.parser
 
 import at.jku.faw.symspace.cypherrewriter.core.antlr.CypherLexer
 import at.jku.faw.symspace.cypherrewriter.core.antlr.CypherParser
-import at.jku.faw.symspace.cypherrewriter.core.cypher.AstElement
+import at.jku.faw.symspace.cypherrewriter.core.cypher.AstNode
 import org.antlr.v4.runtime.*
 import org.antlr.v4.runtime.atn.ATNConfigSet
 import org.antlr.v4.runtime.dfa.DFA
@@ -12,7 +12,7 @@ import java.util.*
 
 @Component
 class NewCypherParserImpl : NewCypherParser {
-    override fun parse(input: String): AstElement {
+    override fun parse(input: String): AstNode {
         return try {
             parse(getParser(input).oC_Cypher())
         } catch (e: Exception) {
@@ -29,11 +29,11 @@ class NewCypherParserImpl : NewCypherParser {
         return antlrParser
     }
 
-    override fun parse(input: ParserRuleContext?): AstElement {
+    override fun parse(input: ParserRuleContext?): AstNode {
         return visitor.visit(input)
     }
 
-    override fun parse(input: String, contextGetter: (CypherParser) -> ParserRuleContext): AstElement {
+    override fun parse(input: String, contextGetter: (CypherParser) -> ParserRuleContext): AstNode {
         return parse(contextGetter(getParser(input)))
     }
 

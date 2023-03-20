@@ -1,6 +1,6 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher.detector.matchutils
 
-import at.jku.faw.symspace.cypherrewriter.core.cypher.AstNode
+import at.jku.faw.symspace.cypherrewriter.core.cypher.AstInternalNode
 
 class QueryContext(): CommonContext() {
     override val evaluateQuerySpecifics = true
@@ -10,5 +10,5 @@ class QueryContext(): CommonContext() {
     var isAggregationFunction: Boolean = false
     var lastVar: Variable? = null
     var isWhereClause: Boolean = false
-    var matchClause: AstNode? = null
+    var matchClause: AstInternalNode? = null
 }
