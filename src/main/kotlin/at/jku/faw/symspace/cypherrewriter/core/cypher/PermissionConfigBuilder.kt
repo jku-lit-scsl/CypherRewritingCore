@@ -3,7 +3,7 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher
 class PermissionConfigBuilder {
 
     private val policyBuilders: MutableList<PolicyBuilder> = mutableListOf()
-    private val filters: MutableList<Filter> = mutableListOf()
+    private val filterTemplates: MutableList<FilterTemplate> = mutableListOf()
 
     fun policy(comment: String? = null): PolicyBuilder {
         val policyBuilder = PolicyBuilder(this, comment)
@@ -14,7 +14,7 @@ class PermissionConfigBuilder {
     fun build(): PermissionConfig {
         val policies = policyBuilders.map { it.build() }
 
-        return PermissionConfig(policies, filters)
+        return PermissionConfig(policies, filterTemplates)
     }
 
     fun filter(
@@ -24,8 +24,8 @@ class PermissionConfigBuilder {
         argumentTypes: List<ArgumentType>,
         comment: String? = null
     ): PermissionConfigBuilder {
-        val filter = Filter(filterId, authorizationLevel, pattern, argumentTypes.toList(), comment)
-        filters.add(filter)
+        val filterTemplate = FilterTemplate(filterId, authorizationLevel, pattern, argumentTypes.toList(), comment)
+        filterTemplates.add(filterTemplate)
         return this
     }
 

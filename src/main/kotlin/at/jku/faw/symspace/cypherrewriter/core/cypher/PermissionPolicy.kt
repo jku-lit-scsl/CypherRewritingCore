@@ -3,7 +3,7 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher
 
 class PermissionConfig(
     val policies: List<Policy>,
-    val filters: List<Filter>
+    val filterTemplates: List<FilterTemplate>
 )
 
 class Policy (
@@ -40,7 +40,7 @@ enum class ConditionBoolean {
     AND, OR, NOT
 }
 
-class Filter (
+class FilterTemplate (
     val filterId: String,
     val authorizationLevel: AuthorizationLevel,
     val pattern: String,

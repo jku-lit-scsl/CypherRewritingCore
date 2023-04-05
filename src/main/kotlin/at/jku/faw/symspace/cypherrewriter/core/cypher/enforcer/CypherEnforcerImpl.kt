@@ -36,19 +36,19 @@ class CypherEnforcerImpl(private val appContext: CypherAppContext, private val p
         }
     }
 
-    private fun getFilter(rule: Rule): Filter {
-        return permissionConfig.filters.find { it.filterId == rule.filterId && it.authorizationLevel == rule.authorizationLevel }
+    private fun getFilter(rule: Rule): FilterTemplate {
+        return permissionConfig.filterTemplates.find { it.filterId == rule.filterId && it.authorizationLevel == rule.authorizationLevel }
             ?: throw IllegalStateException("The filter ${rule.filterId} with authorization level ${rule.authorizationLevel} was not defined.")
     }
 
-    private fun getFilterString(filter: Filter, resourceVariableName: String): String {
-        val args = filter.arguments.map {
+    private fun getFilterString(filterTemplate: FilterTemplate, resourceVariableName: String): String {
+        val args = filterTemplate.arguments.map {
             when (it) {
                 ArgumentType.USERNAME -> appContext.currentUsername
                 ArgumentType.RESOURCE_VARIABLE -> resourceVariableName
             }
         }
-        return filter.pattern.format(*args.toTypedArray())
+        return filterTemplate.pattern.format(*args.toTypedArray())
     }
 
 
