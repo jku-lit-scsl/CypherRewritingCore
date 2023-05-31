@@ -20,36 +20,9 @@ class PermissionDetectorImpl(
     private val policyContextCache: MutableMap<Policy, PolicyContext> = mutableMapOf()
 
     private fun matches(ctx: Context): Boolean {
-
-        println("match test")
-
-        println("extracted paths")
-        ctx.query.paths.forEach { println(it) }
-        println()
-        ctx.policy.paths.forEach { println(it) }
-        println()
-
-        println("structural matches")
         findStructuralMatches(ctx)
-        ctx.structuralMatches.forEach { println(it) }
-        println()
-
-        println("vars and labels")
-        println("\tpolicy")
-        ctx.policy.variables.forEach { println("\t\t" + it.name + ": " + it.knownLabels) }
-        println("\tquery")
-        ctx.query.variables.forEach { println("\t\t" + it.name + ": " + it.knownLabels) }
-        println()
-
         findVarMappingCandidates(ctx)
-        println("var mapping candidates: " + ctx.possibleVarMappings)
-
         val mappings = findMappings(ctx)
-        println("valid var mappings")
-        println(mappings)
-
-        println("var states")
-        ctx.query.variables.forEach { println("${it.name} = ${it.state}") }
 
         return if (mappings.size == 1) {
             ctx.validVarMappings.addAll(mappings.first())
@@ -64,7 +37,6 @@ class PermissionDetectorImpl(
         val iter = VariableMappingIterator.of(ctx.possibleVarMappings)
 
         for (mappings in iter) {
-            println(mappings)
             var mappingValid = true
             for (mapping in mappings) {
                 val policyLabels = mapping.policyVar.knownLabels
@@ -76,14 +48,11 @@ class PermissionDetectorImpl(
                 } else {
                     labelMatcher.matchLabelsQueryContainsAllPolicy(queryLabels, policyLabels, true)
                 }
-                println("$policyLabels containsAll $queryLabels: $result")
                 mappingValid = mappingValid && result
             }
             if (mappingValid) {
                 resultMappings.add(mappings)
             }
-            println("Mapping is valid: $mappingValid")
-            println()
         }
 
         return resultMappings
@@ -199,7 +168,6 @@ class PermissionDetectorImpl(
             val policyContext = policyContextCache.getOrPut(policy) { generatePolicyContext(policy) }
             val ctx = Context(policy = policyContext, query = queryContext)
             val matches = matches(ctx)
-            println("policy matches: $matches")
             if (matches) {
                 val varStateMap = ctx.validVarMappings.associate { it.policyVar.name to it.queryVar.state }
                 for (rule in policy.rules) {
