@@ -48,25 +48,25 @@ class NewCypherRendererImpl : NewCypherRenderer {
             AstType.OR -> renderBinaryOperator(element as AstInternalNode)
             AstType.XOR -> renderBinaryOperator(element as AstInternalNode)
             AstType.AND -> renderBinaryOperator(element as AstInternalNode)
-            AstType.NOT -> renderPrefix(element.asNode(), prefix = element.type.value!!)
+            AstType.NOT -> renderPrefix(element.asNode(), prefix = element.type.value!!) //TODO delimiter should probably be ""
             AstType.EXPRESSION -> TODO()
             AstType.SORT_ITEM -> renderConcatenation(element as AstInternalNode, delimiter = " ")
             AstType.ASC -> renderTerminal(element as AstLeafNoValue)
             AstType.DESC -> renderTerminal(element as AstLeafNoValue)
             AstType.QUERY -> renderConcatenation(element as AstInternalNode, delimiter = " ")
-            AstType.NODE_LABEL -> renderValue(element as AstLeafValue)
+            AstType.NODE_LABEL -> renderValue(element as AstLeafValue, prefix = ":")
             AstType.PARAMETER -> renderValue(element as AstLeafValue, "$")
             AstType.PROPERTY_KEY_NAME -> renderValue(element as AstLeafValue)
             AstType.PROPERTIES -> renderConcatenation(element as AstInternalNode, ", ","{", "}")
             AstType.PROPERTY -> renderConcatenation(element as AstInternalNode, ": ")
-            AstType.PROPERTY_DOT_ACCESS -> renderConcatenation(element.asNode(), ".")
+            AstType.PROPERTY_DOT_ACCESS -> renderPropertyDotAccess(element.asNode())
             AstType.RELATION_BOTH -> renderRelationDetails(element as AstInternalNode, "-", "-")
             AstType.RELATION_LEFT -> renderRelationDetails(element as AstInternalNode, "<-", "-")
             AstType.RELATION_RIGHT -> renderRelationDetails(element as AstInternalNode, "-", "->")
             AstType.RELATION_LABEL -> renderValue(element as AstLeafValue)
             AstType.INTEGER -> renderValue(element as AstLeafValue)
             AstType.DOUBLE -> renderValue(element as AstLeafValue)
-            AstType.NODE -> renderNode(element as AstInternalNode)
+            AstType.NODE -> renderConcatenation(element as AstInternalNode, delimiter = "", prefix = "(", suffix = ")")
             AstType.RANGE_ONE_OR_MORE -> renderTerminal(element as AstLeafNoValue)
             AstType.RANGE_FROM -> renderValue(element as AstLeafValue)
             AstType.RANGE_TO -> renderValue(element as AstLeafValue)
@@ -87,8 +87,9 @@ class NewCypherRendererImpl : NewCypherRenderer {
 
         astNode.elements.find { it.type == AstType.OPTIONAL }?.let { sb.append(visit(it)).append(" ") }
         sb.append("MATCH ")
-        astNode.elements.filter { it.type == AstType.PATTERN }.joinTo(sb, separator = ", ") { visit(it) }
-        astNode.elements.filter { it.type != AstType.OPTIONAL && it.type != AstType.PATTERN }.joinTo(sb, separator = " ", prefix = " ") { visit(it) }
+        val patternPart = astNode.elements.filter { it.type == AstType.PATTERN }.joinToString(separator = ", ") { visit(it) }
+        val otherPart = astNode.elements.filter { it.type != AstType.OPTIONAL && it.type != AstType.PATTERN }.joinToString(separator = " ") { visit(it) }
+        arrayOf(patternPart, otherPart).filter { it.isNotEmpty() }.joinTo(sb, separator = " ")
         return sb.toString()
     }
 
@@ -115,6 +116,8 @@ class NewCypherRendererImpl : NewCypherRenderer {
             sb.append("..")
             to?.let { sb.append(visit(it)) }
         }
+
+        // TODO: handle properties
 
         if (hasDetails) {
             sb.append("]")
@@ -167,14 +170,14 @@ class NewCypherRendererImpl : NewCypherRenderer {
     private fun renderReturn(node: AstInternalNode): String {
         val sb = StringBuilder("RETURN ")
         node.elements.find { it.type == AstType.DISTINCT }?.let { sb.append(render(it)).append(" ") }
-        node.elements.filter { it.type !in arrayOf(AstType.DISTINCT, AstType.ORDER_BY, AstType.SKIP, AstType.LIMIT) }.joinTo(sb, separator = ", ", postfix = " ", transform = {visit(it)})
+        node.elements.filter { it.type !in arrayOf(AstType.DISTINCT, AstType.ORDER_BY, AstType.SKIP, AstType.LIMIT) }.joinTo(sb, separator = ", ", transform = {visit(it)})
         node.elements.filter { it.type in arrayOf(AstType.ORDER_BY, AstType.SKIP, AstType.LIMIT) }.joinTo(sb, separator = " ", transform = {visit(it)})
         return sb.toString()
     }
 
     private fun renderNode(node: AstInternalNode): String {
         val sb = StringBuilder("(")
-        node.elements.find { it.type == AstType.VARIABLE }?.let { visit(it) }.let { sb.append(it) }
+        node.elements.find { it.type == AstType.VARIABLE }?.let { visit(it) }?.let { sb.append(it) }
         node.elements.filter { it.type == AstType.NODE_LABEL }.ifEmpty { null }?.joinTo(sb, prefix = ":", separator = ":", transform = {visit(it)})
         node.elements.filter { it.type == AstType.PROPERTIES }.forEach { sb.append(visit(it)) }
         sb.append(")")
@@ -188,6 +191,24 @@ class NewCypherRendererImpl : NewCypherRenderer {
         node.elements.find { it.type == AstType.DISTINCT }?.let { sb.append(visit(it)).append(" ") }
         node.elements.filter { it.type !in setOf(AstType.FUNCTION_NAME, AstType.DISTINCT) }.joinTo(sb, separator = ", ") { visit(it) }
         sb.append(")")
+        return sb.toString()
+    }
+
+    private fun renderPropertyDotAccess(node: AstInternalNode): String {
+        if (node.elements.size == 1) {
+            return visit(node.elements.first())
+        }
+
+        val sb = StringBuilder()
+        node.elements.forEach {
+            val delimiter = when(it.type) {
+                AstType.VARIABLE -> ""
+                AstType.NODE_LABEL -> ""
+                AstType.RELATION_LABEL -> ":"
+                else -> "."
+            }
+            sb.append(delimiter).append(visit(it))
+        }
         return sb.toString()
     }
 

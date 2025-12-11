@@ -19,7 +19,7 @@
 package at.jku.faw.symspace.cypherrewriter.core.cypher
 
 
-class PermissionConfig(
+open class PermissionConfig(
     val policies: List<Policy>,
     val filterTemplates: List<FilterTemplate>
 )
