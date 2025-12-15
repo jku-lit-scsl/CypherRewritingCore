@@ -20,14 +20,14 @@ package at.jku.faw.symspace.cypherrewriter.core.cypher.detector
 
 import at.jku.faw.symspace.cypherrewriter.core.cypher.*
 import at.jku.faw.symspace.cypherrewriter.core.cypher.detector.matchutils.*
-import at.jku.faw.symspace.cypherrewriter.core.cypher.parser.NewCypherParser
+import at.jku.faw.symspace.cypherrewriter.core.cypher.parser.CypherRewritingParser
 import org.springframework.stereotype.Component
 import kotlin.IllegalArgumentException
 import kotlin.IllegalStateException
 
 @Component
 class PermissionDetectorImpl(
-    private val cypherParser: NewCypherParser,
+    private val cypherParser: CypherRewritingParser,
     private val returnTypeHelper: ReturnTypeHelper,
     private val filterTypeHelper: FilterTypeHelper,
     private val labelMatcher: LabelMatcher,

@@ -25,7 +25,7 @@ import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.misc.ParseCancellationException
 import org.antlr.v4.runtime.tree.TerminalNode
 
-class NewCypherVisitor : CypherBaseVisitor<AstNode>() {
+class CypherRewritingVisitor : CypherBaseVisitor<AstNode>() {
 
     private fun add(node: AstInternalNode, childNodes: List<ParserRuleContext>) {
         childNodes.forEach { add(node, it) }

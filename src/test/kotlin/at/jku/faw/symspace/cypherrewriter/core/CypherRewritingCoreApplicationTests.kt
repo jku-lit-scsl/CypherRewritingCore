@@ -1,11 +1,10 @@
 package at.jku.faw.symspace.cypherrewriter.core
 
 import at.jku.faw.symspace.cypherrewriter.core.antlr.CypherParser
-import at.jku.faw.symspace.cypherrewriter.core.cypher.parser.NewCypherParser
-import at.jku.faw.symspace.cypherrewriter.core.cypher.parser.NewCypherParserImpl
-import at.jku.faw.symspace.cypherrewriter.core.cypher.renderer.AstVisualizerImpl
-import at.jku.faw.symspace.cypherrewriter.core.cypher.renderer.NewCypherRenderer
-import at.jku.faw.symspace.cypherrewriter.core.cypher.renderer.NewCypherRendererImpl
+import at.jku.faw.symspace.cypherrewriter.core.cypher.parser.CypherRewritingParser
+import at.jku.faw.symspace.cypherrewriter.core.cypher.parser.CypherRewritingParserImpl
+import at.jku.faw.symspace.cypherrewriter.core.cypher.unparser.CypherRewritingUnparser
+import at.jku.faw.symspace.cypherrewriter.core.cypher.unparser.CypherRewritingUnparserImpl
 import org.antlr.v4.runtime.ParserRuleContext
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -14,10 +13,10 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ContextConfiguration
 
 @SpringBootTest
-@ContextConfiguration(classes = [NewCypherParserImpl::class, NewCypherRendererImpl::class])
+@ContextConfiguration(classes = [CypherRewritingParserImpl::class, CypherRewritingUnparserImpl::class])
 class AntlrKotlinTestApplicationTests(
-    @Autowired private val parser: NewCypherParser,
-    @Autowired private val renderer: NewCypherRenderer
+    @Autowired private val parser: CypherRewritingParser,
+    @Autowired private val renderer: CypherRewritingUnparser
 ) {
 
     @Test

@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component
 import java.util.*
 
 @Component
-class NewCypherParserImpl : NewCypherParser {
+class CypherRewritingParserImpl : CypherRewritingParser {
     override fun parse(input: String): AstNode {
         return try {
             parse(getParser(input).oC_Cypher())
@@ -56,8 +56,8 @@ class NewCypherParserImpl : NewCypherParser {
     }
 
     companion object {
-        private val visitor = NewCypherVisitor()
-        private val logger = LoggerFactory.getLogger(NewCypherParserImpl::class.java)
+        private val visitor = CypherRewritingVisitor()
+        private val logger = LoggerFactory.getLogger(CypherRewritingParserImpl::class.java)
         private val antlrErrorListener: ANTLRErrorListener = object : ANTLRErrorListener {
             override fun syntaxError(
                 recognizer: Recognizer<*, *>?,

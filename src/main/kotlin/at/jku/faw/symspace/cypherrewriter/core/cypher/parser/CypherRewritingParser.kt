@@ -16,10 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package at.jku.faw.symspace.cypherrewriter.core.cypher.renderer
+package at.jku.faw.symspace.cypherrewriter.core.cypher.parser
 
+import at.jku.faw.symspace.cypherrewriter.core.antlr.CypherParser
 import at.jku.faw.symspace.cypherrewriter.core.cypher.AstNode
+import org.antlr.v4.runtime.ParserRuleContext
 
-interface NewCypherRenderer {
-    fun render(astNode: AstNode): String
+interface CypherRewritingParser {
+    fun parse(input: String): AstNode
+    fun getParser(input: String): CypherParser
+    fun parse(input: ParserRuleContext?): AstNode
+    fun parse(input: String, contextGetter: (CypherParser) -> ParserRuleContext): AstNode
 }

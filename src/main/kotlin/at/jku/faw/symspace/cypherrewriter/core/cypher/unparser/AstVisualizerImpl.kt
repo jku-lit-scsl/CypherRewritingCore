@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package at.jku.faw.symspace.cypherrewriter.core.cypher.renderer
+package at.jku.faw.symspace.cypherrewriter.core.cypher.unparser
 
 import at.jku.faw.symspace.cypherrewriter.core.cypher.*
 import org.springframework.stereotype.Component

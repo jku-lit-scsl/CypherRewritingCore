@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package at.jku.faw.symspace.cypherrewriter.core.cypher.renderer
+package at.jku.faw.symspace.cypherrewriter.core.cypher.unparser
 
 import at.jku.faw.symspace.cypherrewriter.core.cypher.*
 import org.springframework.stereotype.Component
@@ -24,7 +24,7 @@ import java.util.StringJoiner
 import kotlin.text.StringBuilder
 
 @Component
-class NewCypherRendererImpl : NewCypherRenderer {
+class CypherRewritingUnparserImpl : CypherRewritingUnparser {
     override fun render(astNode: AstNode): String {
 
         return visit(astNode)
