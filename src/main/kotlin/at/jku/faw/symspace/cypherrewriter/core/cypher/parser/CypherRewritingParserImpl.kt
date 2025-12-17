@@ -22,11 +22,8 @@ import at.jku.faw.symspace.cypherrewriter.core.antlr.CypherLexer
 import at.jku.faw.symspace.cypherrewriter.core.antlr.CypherParser
 import at.jku.faw.symspace.cypherrewriter.core.cypher.AstNode
 import org.antlr.v4.runtime.*
-import org.antlr.v4.runtime.atn.ATNConfigSet
-import org.antlr.v4.runtime.dfa.DFA
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import java.util.*
 
 @Component
 class CypherRewritingParserImpl : CypherRewritingParser {
@@ -58,7 +55,7 @@ class CypherRewritingParserImpl : CypherRewritingParser {
     companion object {
         private val visitor = CypherRewritingVisitor()
         private val logger = LoggerFactory.getLogger(CypherRewritingParserImpl::class.java)
-        private val antlrErrorListener: ANTLRErrorListener = object : ANTLRErrorListener {
+        private val antlrErrorListener: ANTLRErrorListener = object : BaseErrorListener() {
             override fun syntaxError(
                 recognizer: Recognizer<*, *>?,
                 offendingSymbol: Any,
@@ -68,40 +65,6 @@ class CypherRewritingParserImpl : CypherRewritingParser {
                 e: RecognitionException
             ) {
                 throw InvalidSyntaxException(msg)
-            }
-
-            override fun reportAmbiguity(
-                recognizer: Parser,
-                dfa: DFA,
-                startIndex: Int,
-                stopIndex: Int,
-                exact: Boolean,
-                ambigAlts: BitSet,
-                configs: ATNConfigSet
-            ) {
-                throw IllegalArgumentException()
-            }
-
-            override fun reportAttemptingFullContext(
-                recognizer: Parser,
-                dfa: DFA,
-                startIndex: Int,
-                stopIndex: Int,
-                conflictingAlts: BitSet,
-                configs: ATNConfigSet
-            ) {
-                throw IllegalArgumentException()
-            }
-
-            override fun reportContextSensitivity(
-                recognizer: Parser,
-                dfa: DFA,
-                startIndex: Int,
-                stopIndex: Int,
-                prediction: Int,
-                configs: ATNConfigSet
-            ) {
-                throw IllegalArgumentException()
             }
         }
     }

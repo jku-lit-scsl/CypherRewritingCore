@@ -455,7 +455,9 @@ oC_Namespace
          :  ( oC_SymbolicName '.' )* ;
 
 oC_Variable
-        :  oC_SymbolicName ;
+        :  oC_SymbolicName
+            | oC_ReservedWord
+            ;
 
 oC_Literal
        :  oC_BooleanLiteral
@@ -630,6 +632,8 @@ oC_ReservedWord
                 | OF
                 | ADD
                 | DROP
+                | CALL
+                | YIELD
                 ;
 
 CONSTRAINT : ( 'C' | 'c' ) ( 'O' | 'o' ) ( 'N' | 'n' ) ( 'S' | 's' ) ( 'T' | 't' ) ( 'R' | 'r' ) ( 'A' | 'a' ) ( 'I' | 'i' ) ( 'N' | 'n' ) ( 'T' | 't' ) ;

@@ -38,7 +38,7 @@ class CypherRewritingUnparserImpl : CypherRewritingUnparser {
             AstType.OPTIONAL -> renderTerminal(element as AstLeafNoValue)
             AstType.MATCH -> renderMatch(element as AstInternalNode)
             AstType.DISTINCT -> renderTerminal(element as AstLeafNoValue)
-            AstType.TEMPORARY -> error("${AstType.TEMPORARY} should not be present after parsing.")
+            AstType.TEMPORARY -> renderConcatenation(element as AstInternalNode)
             AstType.ORDER_BY -> renderPrefix(element as AstInternalNode)
             AstType.SKIP -> renderPrefix(element as AstInternalNode)
             AstType.LIMIT -> renderPrefix(element as AstInternalNode)
@@ -79,6 +79,7 @@ class CypherRewritingUnparserImpl : CypherRewritingUnparser {
             AstType.GROUP -> renderConcatenation(element.asNode(), prefix = "(", suffix = ")")
             AstType.STRUCTURAL_GROUP -> renderConcatenation(element.asNode())
             AstType.COMPARISON -> renderValue(element.asValue(), prefix = " ", suffix = " ")
+            AstType.BOOLEAN -> renderValue(element.asValue())
         }
     }
 
@@ -171,8 +172,8 @@ class CypherRewritingUnparserImpl : CypherRewritingUnparser {
         val sb = StringBuilder("RETURN ")
         node.elements.find { it.type == AstType.DISTINCT }?.let { sb.append(render(it)).append(" ") }
         node.elements.filter { it.type !in arrayOf(AstType.DISTINCT, AstType.ORDER_BY, AstType.SKIP, AstType.LIMIT) }.joinTo(sb, separator = ", ", transform = {visit(it)})
-        node.elements.filter { it.type in arrayOf(AstType.ORDER_BY, AstType.SKIP, AstType.LIMIT) }.joinTo(sb, separator = " ", transform = {visit(it)})
-        return sb.toString()
+        node.elements.filter { it.type in arrayOf(AstType.ORDER_BY, AstType.SKIP, AstType.LIMIT) }.joinTo(sb, prefix = " ", separator = " ", transform = {visit(it)})
+        return sb.trimEnd().toString()
     }
 
     private fun renderNode(node: AstInternalNode): String {

@@ -24,6 +24,7 @@ import at.jku.faw.symspace.cypherrewriter.core.cypher.*
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.misc.ParseCancellationException
 import org.antlr.v4.runtime.tree.TerminalNode
+import kotlin.reflect.typeOf
 
 class CypherRewritingVisitor : CypherBaseVisitor<AstNode>() {
 
@@ -356,7 +357,7 @@ class CypherRewritingVisitor : CypherBaseVisitor<AstNode>() {
     }
 
     override fun visitOC_IntegerLiteral(ctx: CypherParser.OC_IntegerLiteralContext): AstNode {
-        return AstLeafValue(AstType.INTEGER, ctx.text.toInt())
+        return AstLeafValue(AstType.INTEGER, ctx.text.toLong())
     }
 
     override fun visitOC_Literal(ctx: CypherParser.OC_LiteralContext): AstNode {
@@ -365,6 +366,10 @@ class CypherRewritingVisitor : CypherBaseVisitor<AstNode>() {
             exists(ctx.NULL()) -> AstLeafNoValue(AstType.NULL)
             else -> visitChildren(ctx)
         }
+    }
+
+    override fun visitOC_BooleanLiteral(ctx: CypherParser.OC_BooleanLiteralContext): AstNode {
+        return AstLeafValue(AstType.BOOLEAN, ctx.text.toBoolean())
     }
 
     override fun visitOC_FunctionInvocation(ctx: CypherParser.OC_FunctionInvocationContext): AstNode {
@@ -406,15 +411,61 @@ class CypherRewritingVisitor : CypherBaseVisitor<AstNode>() {
         val valNode = when {
             ctx.text.startsWith("=") -> AstLeafValue(AstType.COMPARISON, "=")
             ctx.text.startsWith("<>") -> AstLeafValue(AstType.COMPARISON, "<>")
-            ctx.text.startsWith("<") -> AstLeafValue(AstType.COMPARISON, "<")
-            ctx.text.startsWith(">") -> AstLeafValue(AstType.COMPARISON, ">")
             ctx.text.startsWith(">=") -> AstLeafValue(AstType.COMPARISON, ">=")
             ctx.text.startsWith("<=") -> AstLeafValue(AstType.COMPARISON, "<=")
+            ctx.text.startsWith("<") -> AstLeafValue(AstType.COMPARISON, "<")
+            ctx.text.startsWith(">") -> AstLeafValue(AstType.COMPARISON, ">")
             else -> throw ParseCancellationException("Unrecognized comparison operator in \"${ctx.text}\"")
         }
         add(node, valNode)
         add(node, visitChildren(ctx))
         return node
+    }
+
+    override fun visitOC_StringPredicateExpression(ctx: CypherParser.OC_StringPredicateExpressionContext): AstNode {
+        val node = AstInternalNode(AstType.TEMPORARY)
+        val valNode = when {
+            exists(ctx.STARTS()) && exists(ctx.WITH()) -> AstLeafValue(AstType.COMPARISON, "STARTS WITH")
+            exists(ctx.ENDS()) && exists(ctx.WITH()) -> AstLeafValue(AstType.COMPARISON, "ENDS WITH")
+            exists(ctx.CONTAINS()) -> AstLeafValue(AstType.COMPARISON, "CONTAINS")
+            else -> throw ParseCancellationException("Unrecognized string comparison operator in \"${ctx.text}\"")
+        }
+        add(node, valNode)
+        add(node, visitChildren(ctx))
+        return node
+    }
+
+    override fun visitOC_UnaryAddOrSubtractExpression(ctx: CypherParser.OC_UnaryAddOrSubtractExpressionContext): AstNode {
+        val ast = visitChildren(ctx)
+
+        if (ctx.children.any { it.text == "-" }) {
+            return makeNumberLiteralsNegative(ast)
+        }
+
+        return ast
+    }
+
+    private fun makeNumberLiteralsNegative(ast: AstNode): AstNode {
+        when(ast) {
+            is AstInternalNode -> {
+                for (i in 0 until ast.elements.size) {
+                    ast.elements[i] = makeNumberLiteralsNegative(ast.elements[i])
+                }
+            }
+            is AstLeafValue -> return createInvertedAstLeafValue(ast)
+            else -> return ast
+        }
+        return ast
+    }
+
+    private fun createInvertedAstLeafValue(ast: AstLeafValue): AstLeafValue {
+        if (ast.type == AstType.INTEGER && ast.value is Long) {
+            return AstLeafValue(ast.type, - ast.value)
+        }
+        if (ast.type == AstType.DOUBLE && ast.value is Double) {
+            return AstLeafValue(ast.type, - ast.value)
+        }
+        error("Cannot invert AstLeafValue: ${ast.value} with type ${ast.type} and value ${ast.value} (${ast.value.javaClass})")
     }
 
 

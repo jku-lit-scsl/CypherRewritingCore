@@ -101,6 +101,7 @@ enum class AstType(val value: String? = null) {
     FUNCTION_NAME,
     ARGUMENT,
     COMPARISON,
+    BOOLEAN,
 }
 
 object AstMetadata {
