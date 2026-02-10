@@ -42,8 +42,8 @@ class PermissionDetectorImpl(
         findVarMappingCandidates(ctx)
         val mappings = findMappings(ctx)
 
-        return if (mappings.size == 1) {
-            ctx.validVarMappings.addAll(mappings.first())
+        return if (mappings.isNotEmpty()) {
+            ctx.validVarMappings.addAll(mappings)
             true
         } else {
             false
@@ -99,6 +99,13 @@ class PermissionDetectorImpl(
                 if (isStructuralMatch(ctx.policy.labelMatchers, q, p)) {
                     ctx.structuralMatches.add(StructuralMatch(q, p))
                 }
+                if (p.relationship == null && p.to == null && q.to != null) {
+                    // Standalone policy: also try matching against the to-node
+                    val projected = Path(q.to, null, null)
+                    if (isStructuralMatch(ctx.policy.labelMatchers, projected, p)) {
+                        ctx.structuralMatches.add(StructuralMatch(projected, p))
+                    }
+                }
             }
         }
     }
@@ -116,12 +123,8 @@ class PermissionDetectorImpl(
     private fun nodeLabelsMatch(
         nodeLabelsMatcher: Map<String, (Set<String>, Set<String>) -> Boolean>, queryNode: Node?, policyNode: Node?
     ): Boolean {
-        if (queryNode == null && policyNode == null) {
-            return true
-        }
-        if (queryNode == null || policyNode == null) {
-            return false
-        }
+        if (policyNode == null) return true       // policy doesn't constrain this position
+        if (queryNode == null) return false        // policy requires a node but query has none
 
         val matcher = nodeLabelsMatcher[policyNode.variable.name]
         if (matcher != null) {
@@ -132,16 +135,12 @@ class PermissionDetectorImpl(
     }
 
     private fun relationLabelsMatch(queryRelation: Relation?, policyRelation: Relation?): Boolean {
-        if (queryRelation == null && policyRelation == null) {
-            return true
-        }
-        if (queryRelation == null || policyRelation == null) {
-            return false
-        }
+        if (policyRelation == null) return true    // policy doesn't constrain this position
+        if (queryRelation == null) return false     // policy requires a relation but query has none
 
-        return queryRelation.labels.contains("*") || policyRelation.labels.contains("*") || queryRelation.labels.intersect(
-            policyRelation.labels
-        ).isNotEmpty()
+        return queryRelation.labels.isEmpty() || policyRelation.labels.isEmpty()
+                || queryRelation.labels.contains("*") || policyRelation.labels.contains("*")
+                || queryRelation.labels.intersect(policyRelation.labels).isNotEmpty()
     }
 
     private fun getVariable(ctx: CommonContext, ast: AstInternalNode): Variable {
@@ -151,7 +150,7 @@ class PermissionDetectorImpl(
 
     private fun getLabels(ast: AstNode): Set<String> {
         return ast.asNode().elements.filter { it.type == AstType.NODE_LABEL || it.type == AstType.RELATION_LABEL }
-            .map { it.asValue().value.toString() }.toSet().ifEmpty { setOf("*") }
+            .map { it.asValue().value.toString() }.toSet()
     }
 
     private fun getNode(ctx: CommonContext, ast: AstNode): Node {
@@ -187,14 +186,16 @@ class PermissionDetectorImpl(
             val ctx = Context(policy = policyContext, query = queryContext)
             val matches = matches(ctx)
             if (matches) {
-                val varStateMap = ctx.validVarMappings.associate { it.policyVar.name to it.queryVar.state }
                 for (rule in policy.rules) {
-                    if (ruleHelper.ruleMatches(rule, varStateMap)) {
-                        val detection = Detection(rule)
-                        detection.enforcementNode = ctx.query.matchClause
-                        detection.protectedNode =
-                            translatePolicyVarToQueryVar(rule.variable, ctx.validVarMappings).definingElement
-                        detections.add(detection)
+                    for (combination in ctx.validVarMappings) {
+                        val varStateMap = combination.associate { it.policyVar.name to it.queryVar.state }
+                        if (ruleHelper.ruleMatches(rule, varStateMap)) {
+                            val detection = Detection(rule)
+                            detection.enforcementNode = ctx.query.matchClause
+                            detection.protectedNode =
+                                translatePolicyVarToQueryVar(rule.variable, combination).definingElement
+                            detections.add(detection)
+                        }
                     }
                 }
             }

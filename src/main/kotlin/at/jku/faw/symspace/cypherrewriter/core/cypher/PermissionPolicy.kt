@@ -51,7 +51,8 @@ class ConditionExpression (
 
 class ConditionCombination(
     val operation: ConditionBoolean,
-    vararg val conditions: Condition
+    vararg val conditions: Condition,
+    val comment: String? = null,
 ): Condition()
 
 enum class ConditionBoolean {

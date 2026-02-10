@@ -38,8 +38,10 @@ class CypherRewritingParserImpl : CypherRewritingParser {
 
     override fun getParser(input: String): CypherParser {
         val lexer = CypherLexer(CharStreams.fromString(input))
+        lexer.removeErrorListeners()
         lexer.addErrorListener(antlrErrorListener)
         val antlrParser = CypherParser(CommonTokenStream(lexer))
+        antlrParser.removeErrorListeners()
         antlrParser.addErrorListener(antlrErrorListener)
         return antlrParser
     }
@@ -58,7 +60,7 @@ class CypherRewritingParserImpl : CypherRewritingParser {
         private val antlrErrorListener: ANTLRErrorListener = object : BaseErrorListener() {
             override fun syntaxError(
                 recognizer: Recognizer<*, *>?,
-                offendingSymbol: Any,
+                offendingSymbol: Any?,
                 line: Int,
                 charPositionInLine: Int,
                 msg: String,

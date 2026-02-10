@@ -26,11 +26,11 @@ import kotlin.random.Random
 @Component
 class CypherEnforcerImpl(private val appContext: CypherAppContext, private val permissionConfig: PermissionConfig) :
     CypherEnforcer {
-    override fun enforce(detections: Collection<Detection>) {
-        detections.forEach { enforce(it) }
+    override fun enforce(detections: Collection<Detection>, overrideUsername: String?) {
+        detections.forEach { enforce(it, overrideUsername) }
     }
 
-    private fun enforce(detection: Detection) {
+    private fun enforce(detection: Detection, overrideUsername: String?) {
         val authLevel = detection.rule.authorizationLevel
         if (authLevel == AuthorizationLevel.PUBLIC_LEVEL) {
             return
@@ -39,19 +39,30 @@ class CypherEnforcerImpl(private val appContext: CypherAppContext, private val p
         val protectedVar = detection.protectedNode?.let { getVariable(it) }?.value.toString()
         val whereNode = detection.enforcementNode?.let { getWhere(it) } ?: return
         val filter = getFilter(detection.rule)
-        val filterString = getFilterString(filter, protectedVar)
+        val filterString = getFilterString(filter, protectedVar, overrideUsername)
 
 
         val filterAst = AstLeafValue(AstType.STRING, filterString)
         if (whereNode.elements.isEmpty()) {
             whereNode.elements.add(filterAst)
         } else {
-            val andNode = AstInternalNode(AstType.AND)
-            andNode.elements.add(filterAst)
-            andNode.elements.addAll(whereNode.elements) //TODO add support for parenthesis
+            val andNode = buildGroupedAnd(filterAst, whereNode.elements)
             whereNode.elements.clear()
             whereNode.elements.add(andNode)
         }
+    }
+    
+    private fun buildGroupedAnd(filterAst: AstNode, existingAsts: List<AstNode>): AstInternalNode {
+        val filterGroup = AstInternalNode(AstType.GROUP)
+        filterGroup.elements.add(filterAst)
+
+        val existingGroup = AstInternalNode(AstType.GROUP)
+        existingGroup.elements.addAll(existingAsts)
+
+        val andNode = AstInternalNode(AstType.AND)
+        andNode.elements.add(filterGroup)
+        andNode.elements.add(existingGroup)
+        return andNode
     }
 
     private fun getFilter(rule: Rule): FilterTemplate {
@@ -59,10 +70,10 @@ class CypherEnforcerImpl(private val appContext: CypherAppContext, private val p
             ?: throw IllegalStateException("The filter ${rule.filterId} with authorization level ${rule.authorizationLevel} was not defined.")
     }
 
-    private fun getFilterString(filterTemplate: FilterTemplate, resourceVariableName: String): String {
+    private fun getFilterString(filterTemplate: FilterTemplate, resourceVariableName: String, overrideUsername: String?): String {
         val args = filterTemplate.arguments.map {
             when (it) {
-                ArgumentType.USERNAME -> appContext.currentUsername
+                ArgumentType.USERNAME -> overrideUsername ?: appContext.currentUsername
                 ArgumentType.RESOURCE_VARIABLE -> resourceVariableName
             }
         }

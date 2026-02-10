@@ -24,4 +24,8 @@ class Detection(val rule: Rule) {
     var protectedNode: AstInternalNode? = null
     var enforcementNode: AstInternalNode? = null
     val authorizationLevel get()= rule.authorizationLevel
+
+    override fun toString(): String {
+        return "Detection(Rule: ${rule.id}, AuthorizationLevel: $authorizationLevel)"
+    }
 }
