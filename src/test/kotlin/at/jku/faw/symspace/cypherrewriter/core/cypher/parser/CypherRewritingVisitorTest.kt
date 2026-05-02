@@ -53,6 +53,24 @@ class CypherRewritingVisitorTest(
     }
 
     @Test
+    fun visitOC_Cypher_nullPredicateRegression() {
+        // Regression: IS NOT NULL must round-trip through parser+unparser.
+        // Dropping the predicate previously enabled filter-only access bypasses
+        // (see ClaudeSecurityAssessment/ASSESSMENT_REPORT.md, Vuln A).
+        "MATCH (l:Listing) WHERE l.flag IS NOT NULL RETURN sum(l.id)".testEquality { it.oC_Cypher() }
+        "MATCH (l:Listing) WHERE l.aggFlag IS NOT NULL RETURN sum(l.id)".testEquality { it.oC_Cypher() }
+        "MATCH (u:User) WHERE u.flag IS NOT NULL RETURN sum(u.id)".testEquality { it.oC_Cypher() }
+        "MATCH (u:User) WHERE u.altFlag IS NOT NULL RETURN sum(u.id)".testEquality { it.oC_Cypher() }
+        "MATCH (l:Listing)<-[:REVIEWS]-(r:Review) WHERE r.flag IS NOT NULL RETURN sum(l.id)"
+            .testEquality { it.oC_Cypher() }
+        "MATCH (l:Listing)<-[:REVIEWS]-(r:Review) WHERE r.authorPairFlag IS NOT NULL RETURN sum(l.id)"
+            .testEquality { it.oC_Cypher() }
+
+        // companion IS NULL form — symmetric, should never have worked but cheap to lock in
+        "MATCH (l:Listing) WHERE l.flag IS NULL RETURN sum(l.id)".testEquality { it.oC_Cypher() }
+    }
+
+    @Test
     fun visitOC_SinglePartQuery() {
     }
 
@@ -243,6 +261,17 @@ class CypherRewritingVisitorTest(
 
     @Test
     fun visitOC_Where() {
+        "WHERE n.prop IS NULL".testEquality { it.oC_Where() }
+        "WHERE n.prop IS NOT NULL".testEquality { it.oC_Where() }
+
+        // combined with boolean operators — common shape in the security bypasses
+        "WHERE n.prop IS NULL AND n.other = 1".testEquality { it.oC_Where() }
+        "WHERE n.prop IS NOT NULL OR n.other > 0".testEquality { it.oC_Where() }
+        "WHERE n.a IS NOT NULL AND n.b IS NOT NULL".testEquality { it.oC_Where() }
+
+        // parenthesized
+        "WHERE (n.prop IS NOT NULL)".testEquality { it.oC_Where() }
+        "WHERE (n.a IS NULL OR n.b IS NOT NULL) AND n.c = 1".testEquality { it.oC_Where() }
     }
 
     @Test
@@ -261,6 +290,31 @@ class CypherRewritingVisitorTest(
         "FaLsE".testEquality("false") { it.oC_BooleanLiteral() }
         "tRuE".testEquality("true") { it.oC_BooleanLiteral() }
         "fAlSe".testEquality("false") { it.oC_BooleanLiteral() }
+    }
+
+    @Test
+    fun visitOC_NullPredicateExpression() {
+        // The grammar rule oC_NullPredicateExpression is suffix-only (`IS [NOT] NULL`);
+        // tested via its parent oC_StringListNullPredicateExpression so an operand is present.
+
+        // baseline round-trip
+        "n.prop IS NULL".testEquality { it.oC_StringListNullPredicateExpression() }
+        "n.prop IS NOT NULL".testEquality { it.oC_StringListNullPredicateExpression() }
+
+        // case normalization (grammar accepts mixed case)
+        "n.prop is null".testEquality("n.prop IS NULL") { it.oC_StringListNullPredicateExpression() }
+        "n.prop is not null".testEquality("n.prop IS NOT NULL") { it.oC_StringListNullPredicateExpression() }
+        "n.prop Is Not Null".testEquality("n.prop IS NOT NULL") { it.oC_StringListNullPredicateExpression() }
+
+        // whitespace normalization
+        "n.prop  IS  NULL".testEquality("n.prop IS NULL") { it.oC_StringListNullPredicateExpression() }
+        "n.prop  IS  NOT  NULL".testEquality("n.prop IS NOT NULL") { it.oC_StringListNullPredicateExpression() }
+
+        // operand variants
+        "n IS NULL".testEquality { it.oC_StringListNullPredicateExpression() }
+        "n IS NOT NULL".testEquality { it.oC_StringListNullPredicateExpression() }
+        "42 IS NULL".testEquality { it.oC_StringListNullPredicateExpression() }
+        "n.a.b IS NOT NULL".testEquality { it.oC_StringListNullPredicateExpression() }
     }
 
     @Test

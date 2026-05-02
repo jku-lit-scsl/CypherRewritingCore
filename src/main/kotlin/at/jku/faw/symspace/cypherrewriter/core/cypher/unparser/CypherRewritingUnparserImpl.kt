@@ -73,6 +73,8 @@ class CypherRewritingUnparserImpl : CypherRewritingUnparser {
             AstType.RANGE_EXACTLY -> renderValue(element as AstLeafValue, prefix = "*")
             AstType.STRING -> renderValue(element as AstLeafValue)
             AstType.NULL -> renderTerminal(element as AstLeafNoValue)
+            AstType.IS_NULL -> renderTerminal(element as AstLeafNoValue, prefix = " ")
+            AstType.IS_NOT_NULL -> renderTerminal(element as AstLeafNoValue, prefix = " ")
             AstType.FUNCTION_NAME -> renderValue(element as AstLeafValue)
             AstType.FUNCTION_INVOCATION -> renderFunctionInvocation(element as AstInternalNode)
             AstType.ARGUMENT -> renderConcatenation(element as AstInternalNode, delimiter = ".")
@@ -133,8 +135,8 @@ class CypherRewritingUnparserImpl : CypherRewritingUnparser {
         return joiner.toString()
     }
 
-    private fun renderTerminal(astLeafNoValue: AstLeafNoValue): String {
-        return astLeafNoValue.type.value!!
+    private fun renderTerminal(astLeafNoValue: AstLeafNoValue, prefix: String = "", suffix: String = ""): String {
+        return prefix + astLeafNoValue.type.value!! + suffix
     }
 
     private fun renderValue(astValue: AstLeafValue, prefix: String = "", suffix: String = ""): String {

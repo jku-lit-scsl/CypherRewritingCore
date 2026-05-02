@@ -435,6 +435,11 @@ class CypherRewritingVisitor : CypherBaseVisitor<AstNode>() {
         return node
     }
 
+    override fun visitOC_NullPredicateExpression(ctx: CypherParser.OC_NullPredicateExpressionContext): AstNode {
+        val type = if (exists(ctx.NOT())) AstType.IS_NOT_NULL else AstType.IS_NULL
+        return AstLeafNoValue(type)
+    }
+
     override fun visitOC_UnaryAddOrSubtractExpression(ctx: CypherParser.OC_UnaryAddOrSubtractExpressionContext): AstNode {
         val ast = visitChildren(ctx)
 

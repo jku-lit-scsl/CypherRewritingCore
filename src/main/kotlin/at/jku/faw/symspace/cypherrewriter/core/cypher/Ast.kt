@@ -97,6 +97,8 @@ enum class AstType(val value: String? = null) {
     RANGE_FROM,
     RANGE_TO,
     NULL("NULL"),
+    IS_NULL("IS NULL"),
+    IS_NOT_NULL("IS NOT NULL"),
     FUNCTION_INVOCATION,
     FUNCTION_NAME,
     ARGUMENT,
