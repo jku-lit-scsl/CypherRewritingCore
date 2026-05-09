@@ -120,7 +120,7 @@ class CypherRewritingUnparserImpl : CypherRewritingUnparser {
             to?.let { sb.append(visit(it)) }
         }
 
-        // TODO: handle properties
+        astNode.elements.find { it.type == AstType.PROPERTIES }?.let { sb.append(visit(it)) }
 
         if (hasDetails) {
             sb.append("]")

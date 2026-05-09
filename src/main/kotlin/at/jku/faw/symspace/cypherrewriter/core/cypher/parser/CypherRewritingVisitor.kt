@@ -406,6 +406,12 @@ class CypherRewritingVisitor : CypherBaseVisitor<AstNode>() {
         return node
     }
 
+    override fun visitOC_PatternPredicate(ctx: CypherParser.OC_PatternPredicateContext): AstNode {
+        val node = AstInternalNode(AstType.STRUCTURAL_GROUP)
+        add(node, visitChildren(ctx))
+        return node
+    }
+
     override fun visitOC_PartialComparisonExpression(ctx: CypherParser.OC_PartialComparisonExpressionContext): AstNode {
         val node = AstInternalNode(AstType.TEMPORARY)
         val valNode = when {

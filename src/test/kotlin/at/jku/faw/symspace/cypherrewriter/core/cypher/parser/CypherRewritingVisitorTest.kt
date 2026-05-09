@@ -71,6 +71,49 @@ class CypherRewritingVisitorTest(
     }
 
     @Test
+    fun visitOC_Cypher_pathPredicateInWhereRegression() {
+        // Regression: a path predicate in a WHERE clause (e.g. an auth filter
+        // `(:User {username: '...'})-[:OWNS]->(c)`) was previously folded into the
+        // surrounding PROPERTY_DOT_ACCESS, so the unparser emitted spurious '.'
+        // delimiters between the NODE and RELATION_* children — producing strings
+        // like `.(:User{...}).-[:OWNS]->.(c)`. The fix wraps oC_PatternPredicate
+        // in a STRUCTURAL_GROUP so its children render with empty delimiters.
+        "MATCH (c) WHERE (:User)-[:OWNS]->(c) RETURN c".testEquality { it.oC_Cypher() }
+        "MATCH (c) WHERE (:User{username: 'host42'})-[:OWNS]->(c) RETURN c".testEquality { it.oC_Cypher() }
+        "MATCH (c) WHERE (u:User)-[:OWNS]->(c) RETURN c".testEquality { it.oC_Cypher() }
+        "MATCH (c) WHERE (:User)-[:OWNS]->(c) OR (:Admin)-[:OWNS]->(c) RETURN c".testEquality { it.oC_Cypher() }
+        "MATCH (c) WHERE NOT (:User)-[:OWNS]->(c) RETURN c".testEquality { it.oC_Cypher() }
+        "MATCH (c) WHERE ((:User{username: 'host42'})-[:OWNS]->(c) OR (:User{username: 'host42'})-[:OWNS]->(:Permission)-[:GRANTS]->(c)) RETURN c"
+            .testEquality { it.oC_Cypher() }
+    }
+
+    @Test
+    fun visitOC_Cypher_relationshipPropertiesRegression() {
+        // Regression: properties on a relationship pattern (e.g. `[:ALLOWS {type: 'READ'}]`)
+        // were dropped by the unparser — the PROPERTIES sub-tree existed in the AST but
+        // renderRelationDetails never emitted it. Auth filters that constrain a relationship
+        // by property silently broadened to all relationships of that label.
+        "MATCH (a)-[:R{k: 1}]->(b) RETURN a".testEquality { it.oC_Cypher() }
+        "MATCH (a)-[:R{k: 'v'}]->(b) RETURN a".testEquality { it.oC_Cypher() }
+        "MATCH (a)<-[:R{k: 1}]-(b) RETURN a".testEquality { it.oC_Cypher() }
+        "MATCH (a)-[:R{k: 1}]-(b) RETURN a".testEquality { it.oC_Cypher() }
+        "MATCH (a)-[r:R{k: 1, k2: 2}]->(b) RETURN r".testEquality { it.oC_Cypher() }
+        "MATCH (a)-[:ALLOWS{type: 'READ'}]->(b) RETURN a".testEquality { it.oC_Cypher() }
+    }
+
+    @Test
+    fun visitOC_RelationshipPattern_withProperties() {
+        // Companion to the relationship-properties round-trip regression above,
+        // exercised through the oC_RelationshipPattern entry point.
+        "-[:R{k: 1}]->".testEquality { it.oC_RelationshipPattern() }
+        "<-[:R{k: 1}]-".testEquality { it.oC_RelationshipPattern() }
+        "-[:R{k: 1}]-".testEquality { it.oC_RelationshipPattern() }
+        "-[r:R{k: 1}]-".testEquality { it.oC_RelationshipPattern() }
+        "-[r:R{k: 1, k2: 'v'}]-".testEquality { it.oC_RelationshipPattern() }
+        "-[r:R|R2{k: 1}]-".testEquality { it.oC_RelationshipPattern() }
+    }
+
+    @Test
     fun visitOC_SinglePartQuery() {
     }
 
